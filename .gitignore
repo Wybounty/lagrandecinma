@@ -27,3 +27,18 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Cursor
+.cursor/
+
+# AI / Agents
+.agents/
+AGENTS.md
+opencode.json
+
+# Environment
+.env
+
+# Dependencies
+node_modules/
+vendor/
