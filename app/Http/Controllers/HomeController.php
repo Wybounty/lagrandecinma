@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use inertia\Inertia;
 use App\Models\Movie;
-
+use Inertia\Inertia;
+use Inertia\Response;
 
 class HomeController extends Controller
 {
-    //
-    public function index()
+    public function index(): Response
     {
         $movies = Movie::query()
             ->where('is_active', true)
@@ -19,7 +17,7 @@ class HomeController extends Controller
             ->get();
 
         return Inertia::render('Home', [
-            'movies' => $movies
+            'movies' => $movies,
         ]);
     }
 }
