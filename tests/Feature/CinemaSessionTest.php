@@ -47,7 +47,7 @@ test('database seeder seeds rooms and five cinema sessions per movie', function 
 
     $movies = Movie::query()->orderBy('id')->get();
 
-    expect(Room::count())->toBe(3);
+    expect(Room::count())->toBe(10);
     expect(CinemaSession::count())->toBe($movies->count() * 5);
 
     foreach ($movies as $movie) {
@@ -64,8 +64,8 @@ test('database seeder seeds rooms and five cinema sessions per movie', function 
     }
 
     $this->assertDatabaseHas('rooms', [
-        'name' => 'Salle VIP',
-        'total_seats' => 40,
+        'name' => 'Salle 10',
+        'total_seats' => 170,
         'is_active' => true,
     ]);
 
