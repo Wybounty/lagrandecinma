@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Movie extends Model
@@ -39,6 +40,12 @@ class Movie extends Model
     }
 
     /**
-     * Relations
+     * Get the cinema sessions for the movie.
+     *
+     * @return HasMany<CinemaSession, $this>
      */
+    public function cinemaSessions(): HasMany
+    {
+        return $this->hasMany(CinemaSession::class);
+    }
 }
