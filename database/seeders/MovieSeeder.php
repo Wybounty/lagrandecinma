@@ -15,6 +15,7 @@ class MovieSeeder extends Seeder
         Movie::insert([
             [
                 'title' => 'Interstellar',
+                'slug' => 'interstellar',
                 'description' => 'Une équipe d\'explorateurs traverse un trou de ver afin de sauver l\'humanité.',
                 'genre' => 'Science-fiction',
                 'duration' => 169,
@@ -27,6 +28,7 @@ class MovieSeeder extends Seeder
             ],
             [
                 'title' => 'Inception',
+                'slug' => 'inception',
                 'description' => 'Un voleur spécialisé dans l\'extraction de secrets à travers les rêves.',
                 'genre' => 'Science-fiction',
                 'duration' => 148,
@@ -39,6 +41,7 @@ class MovieSeeder extends Seeder
             ],
             [
                 'title' => 'The Dark Knight',
+                'slug' => 'the-dark-knight',
                 'description' => 'Batman affronte le Joker qui sème le chaos à Gotham.',
                 'genre' => 'Action',
                 'duration' => 152,
@@ -51,6 +54,7 @@ class MovieSeeder extends Seeder
             ],
             [
                 'title' => 'Avatar',
+                'slug' => 'avatar',
                 'description' => 'Un ancien marine découvre la planète Pandora.',
                 'genre' => 'Science-fiction',
                 'duration' => 162,
@@ -63,6 +67,7 @@ class MovieSeeder extends Seeder
             ],
             [
                 'title' => 'Top Gun: Maverick',
+                'slug' => 'top-gun-maverick',
                 'description' => 'Pete Maverick Mitchell revient former une nouvelle génération de pilotes.',
                 'genre' => 'Action',
                 'duration' => 131,
@@ -75,6 +80,7 @@ class MovieSeeder extends Seeder
             ],
             [
                 'title' => 'Interstellar',
+                'slug' => 'interstellar-2',
                 'description' => 'Une équipe d\'explorateurs traverse un trou de ver afin de sauver l\'humanité.',
                 'genre' => 'Science-fiction',
                 'duration' => 169,
@@ -87,6 +93,7 @@ class MovieSeeder extends Seeder
             ],
             [
                 'title' => 'Inception',
+                'slug' => 'inception-2',
                 'description' => 'Un voleur spécialisé dans l\'extraction de secrets à travers les rêves.',
                 'genre' => 'Science-fiction',
                 'duration' => 148,
@@ -99,6 +106,7 @@ class MovieSeeder extends Seeder
             ],
             [
                 'title' => 'The Dark Knight',
+                'slug' => 'the-dark-knight-2',
                 'description' => 'Batman affronte le Joker qui sème le chaos à Gotham.',
                 'genre' => 'Action',
                 'duration' => 152,
@@ -111,6 +119,7 @@ class MovieSeeder extends Seeder
             ],
             [
                 'title' => 'Avatar',
+                'slug' => 'avatar-2',
                 'description' => 'Un ancien marine découvre la planète Pandora.',
                 'genre' => 'Science-fiction',
                 'duration' => 162,
@@ -123,6 +132,7 @@ class MovieSeeder extends Seeder
             ],
             [
                 'title' => 'Top Gun: Maverick',
+                'slug' => 'top-gun-maverick-2',
                 'description' => 'Pete Maverick Mitchell revient former une nouvelle génération de pilotes.',
                 'genre' => 'Action',
                 'duration' => 131,

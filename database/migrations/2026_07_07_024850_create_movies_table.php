@@ -16,6 +16,7 @@ return new class extends Migration
 
             $table->string('title');
             $table->text('description');
+            $table->string('slug')->unique();
 
             $table->string('genre');
             $table->unsignedSmallInteger('duration'); // en minutes

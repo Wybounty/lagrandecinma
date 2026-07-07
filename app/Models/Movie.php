@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Movie extends Model
 {
@@ -12,6 +13,7 @@ class Movie extends Model
     protected $fillable = [
         'title',
         'description',
+        'slug',
         'genre',
         'duration',
         'release_date',
@@ -29,8 +31,14 @@ class Movie extends Model
         'is_active' => 'boolean',
     ];
 
+    protected static function booted()
+    {
+        static::creating(function ($movie) {
+            $movie->slug = Str::slug($movie->title);
+        });
+    }
+
     /**
      * Relations
      */
-
 }
