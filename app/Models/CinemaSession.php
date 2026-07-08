@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CinemaSession extends Model
 {
@@ -49,5 +50,25 @@ class CinemaSession extends Model
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);
+    }
+
+    /**
+     * Get the reservation requests for this cinema session.
+     *
+     * @return HasMany<ReservationRequest, $this>
+     */
+    public function reservationRequests(): HasMany
+    {
+        return $this->hasMany(ReservationRequest::class);
+    }
+
+    /**
+     * Get the reservations for this cinema session.
+     *
+     * @return HasMany<Reservation, $this>
+     */
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(Reservation::class);
     }
 }

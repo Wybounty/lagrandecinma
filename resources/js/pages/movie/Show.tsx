@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
-
+import { useState } from 'react';
+import { create as createReservation } from '@/routes/reservation';
 interface Room {
     id: number;
     name: string;
@@ -31,6 +32,8 @@ interface Props {
 }
 
 export default function Index({ movie }: Props) {
+    const [selectedSession, setSelectedSession] = useState<number | null>(null);
+
     return (
         <>
             <Head title={movie.title} />
@@ -90,44 +93,62 @@ export default function Index({ movie }: Props) {
                                 <div className="space-y-3">
                                     {movie.cinema_sessions.length > 0 ? (
                                         movie.cinema_sessions.map((session) => (
-                                            <div
+                                            <button
                                                 key={session.id}
-                                                className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 transition hover:border-red-500"
+                                                type="button"
+                                                onClick={() =>
+                                                    setSelectedSession(
+                                                        session.id,
+                                                    )
+                                                }
+                                                className={`w-full rounded-xl border p-4 text-left transition ${
+                                                    selectedSession ===
+                                                    session.id
+                                                        ? 'border-red-600 bg-red-50'
+                                                        : 'border-neutral-200 hover:border-red-500'
+                                                }`}
                                             >
-                                                <div>
-                                                    <p className="font-semibold capitalize">
-                                                        {new Date(
-                                                            session.starts_at,
-                                                        ).toLocaleDateString(
-                                                            'fr-FR',
-                                                            {
-                                                                weekday: 'long',
-                                                                day: 'numeric',
-                                                                month: 'long',
-                                                            },
-                                                        )}
-                                                    </p>
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="font-semibold capitalize">
+                                                            {new Date(
+                                                                session.starts_at,
+                                                            ).toLocaleDateString(
+                                                                'fr-FR',
+                                                                {
+                                                                    weekday:
+                                                                        'long',
+                                                                    day: 'numeric',
+                                                                    month: 'long',
+                                                                },
+                                                            )}
+                                                        </p>
 
-                                                    <p className="text-neutral-600">
-                                                        {new Date(
-                                                            session.starts_at,
-                                                        ).toLocaleTimeString(
-                                                            'fr-FR',
-                                                            {
-                                                                hour: '2-digit',
-                                                                minute: '2-digit',
-                                                            },
-                                                        )}{' '}
-                                                        • {session.room.name}
-                                                    </p>
-                                                </div>
+                                                        <p className="text-neutral-600">
+                                                            {new Date(
+                                                                session.starts_at,
+                                                            ).toLocaleTimeString(
+                                                                'fr-FR',
+                                                                {
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit',
+                                                                },
+                                                            )}{' '}
+                                                            •{' '}
+                                                            {session.room.name}
+                                                        </p>
+                                                    </div>
 
-                                                <div className="text-right">
-                                                    <p className="text-lg font-bold">
-                                                        {parseFloat(session.price).toFixed(2)} €
-                                                    </p>
+                                                    <div className="text-right">
+                                                        <p className="text-lg font-bold">
+                                                            {parseFloat(
+                                                                session.price,
+                                                            ).toFixed(2)}{' '}
+                                                            €
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            </button>
                                         ))
                                     ) : (
                                         <p className="text-neutral-500">
@@ -137,12 +158,21 @@ export default function Index({ movie }: Props) {
                                 </div>
                             </div>
 
-                            <div className="mt-10 flex gap-4">
+                            {/* Actions */}
+                            <div className="mt-10 flex flex-wrap gap-4">
                                 <Link
-                                    href="#"
-                                    className="rounded-xl bg-red-600 px-8 py-4 font-semibold text-white transition hover:bg-red-700"
+                                    href={
+                                        selectedSession
+                                            ? createReservation(selectedSession)
+                                            : '#'
+                                    }
+                                    className={`rounded-xl px-8 py-4 font-semibold text-white transition ${
+                                        selectedSession
+                                            ? 'bg-red-600 hover:bg-red-700'
+                                            : 'cursor-not-allowed bg-neutral-400'
+                                    }`}
                                 >
-                                    Réserver une séance
+                                    Réserver cette séance
                                 </Link>
 
                                 {movie.trailer_url && (
