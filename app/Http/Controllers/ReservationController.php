@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ReservationConfirmationMail;
 use App\Mail\ReservationVerificationCodeMail;
 use App\Models\CinemaSession;
 use App\Models\Reservation;
@@ -10,6 +11,7 @@ use App\Models\Ticket;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -100,6 +102,18 @@ class ReservationController extends Controller
                 'ticket_number' => sprintf('TK-%03d-%02d', $reservation->id, $i + 1),
             ]);
         }
+
+        $ticketDownloadUrl = URL::temporarySignedRoute(
+            'tickets.show',
+            now()->addDays(7),
+            ['reservation' => $reservation->id],
+        );
+
+        Mail::to($reservationRequest->email)
+            ->send(new ReservationConfirmationMail(
+                $reservation->load('tickets'),
+                $ticketDownloadUrl,
+            ));
 
         return redirect()->route('reservation.confirmed');
     }

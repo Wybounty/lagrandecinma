@@ -1,5 +1,6 @@
 <?php
 
+use App\Mail\ReservationConfirmationMail;
 use App\Mail\ReservationVerificationCodeMail;
 use App\Models\CinemaSession;
 use App\Models\Movie;
@@ -8,6 +9,7 @@ use App\Models\ReservationRequest;
 use App\Models\Room;
 use App\Models\Ticket;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function makeCinemaSession(): CinemaSession
@@ -61,6 +63,7 @@ test('reservation request is created and verification mail is sent', function ()
     expect($reservationRequest->expires_at)->not->toBeNull();
 
     Mail::assertSent(ReservationVerificationCodeMail::class);
+    Mail::assertNotSent(ReservationConfirmationMail::class);
 });
 
 test('reservation verification page is displayed for a token', function () {
@@ -87,6 +90,8 @@ test('reservation verification page is displayed for a token', function () {
 });
 
 test('reservation is confirmed when the verification code matches', function () {
+    Mail::fake();
+
     $session = makeCinemaSession();
 
     $reservationRequest = ReservationRequest::create([
@@ -113,6 +118,9 @@ test('reservation is confirmed when the verification code matches', function () 
 
     expect($reservation->status)->toBe('confirmed');
     expect($reservation->tickets)->toHaveCount(2);
+    expect($reservation->tickets->first()->uuid)->not->toBeEmpty();
+
+    Mail::assertSent(ReservationConfirmationMail::class);
 });
 
 test('reservation verification is rejected when the verification code does not match', function () {
@@ -139,4 +147,93 @@ test('reservation verification is rejected when the verification code does not m
 
     expect(Reservation::count())->toBe(0);
     expect(Ticket::count())->toBe(0);
+});
+
+test('signed ticket url returns a pdf', function () {
+    $session = makeCinemaSession();
+
+    $reservation = Reservation::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 1,
+        'status' => 'confirmed',
+    ]);
+
+    $response = $this->get(URL::temporarySignedRoute('tickets.show', now()->addDay(), [
+        'reservation' => $reservation->id,
+    ]));
+
+    $response->assertOk();
+    $response->assertHeader('Content-Type', 'application/pdf');
+});
+
+test('reservation pdf contains one page per ticket when downloading all tickets', function () {
+    $session = makeCinemaSession();
+
+    $reservation = Reservation::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 4,
+        'status' => 'confirmed',
+    ]);
+
+    for ($i = 1; $i <= 4; $i++) {
+        Ticket::create([
+            'reservation_id' => $reservation->id,
+            'ticket_number' => sprintf('TK-%03d-%02d', $reservation->id, $i),
+        ]);
+    }
+
+    $response = $this->get(URL::temporarySignedRoute('tickets.show', now()->addDay(), [
+        'reservation' => $reservation->id,
+    ]));
+
+    $response->assertOk();
+
+    $pdf = $response->getContent();
+
+    expect($pdf)->toContain('%PDF-1.4');
+    expect($pdf)->toContain('Billet 1');
+    expect($pdf)->toContain('Billet 2');
+    expect($pdf)->toContain('Billet 3');
+    expect($pdf)->toContain('Billet 4');
+});
+
+test('single ticket download url is signed and unique per ticket', function () {
+    $session = makeCinemaSession();
+
+    $reservation = Reservation::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 2,
+        'status' => 'confirmed',
+    ]);
+
+    $firstTicket = Ticket::create([
+        'reservation_id' => $reservation->id,
+        'ticket_number' => 'TK-001-01',
+    ]);
+
+    $secondTicket = Ticket::create([
+        'reservation_id' => $reservation->id,
+        'ticket_number' => 'TK-001-02',
+    ]);
+
+    $firstUrl = URL::temporarySignedRoute('tickets.single', now()->addDay(), [
+        'ticket' => $firstTicket->uuid,
+    ]);
+
+    $secondUrl = URL::temporarySignedRoute('tickets.single', now()->addDay(), [
+        'ticket' => $secondTicket->uuid,
+    ]);
+
+    expect($firstUrl)->not->toBe($secondUrl);
+    expect($firstUrl)->toContain($firstTicket->uuid);
+    expect($secondUrl)->toContain($secondTicket->uuid);
 });
