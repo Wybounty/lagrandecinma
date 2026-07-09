@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use App\Models\ReservationRequest;
-use Inertia\Response;
-use Illuminate\Http\RedirectResponse;
+use App\Mail\ReservationVerificationCodeMail;
 use App\Models\CinemaSession;
+use App\Models\ReservationRequest;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ReservationController extends Controller
 {
@@ -37,7 +39,7 @@ class ReservationController extends Controller
             'quantity' => ['required', 'integer', 'min:1', 'max:10'],
         ]);
 
-        ReservationRequest::create([
+        $reservationRequest = ReservationRequest::create([
             ...$validated,
             'verification_code' => str_pad(
                 random_int(0, 999999),
@@ -48,9 +50,45 @@ class ReservationController extends Controller
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        // TODO :
-        // Envoyer le code par mail
+        Mail::to($reservationRequest->email)
+            ->send(new ReservationVerificationCodeMail($reservationRequest));
+
+        $request->session()->put('reservation_request_id', $reservationRequest->id);
 
         return redirect()->route('reservation.verify.notice');
+    }
+
+    public function verifyNotice(Request $request): Response
+    {
+        $reservationRequest = ReservationRequest::find(
+            $request->session()->get('reservation_request_id')
+        );
+
+        abort_unless($reservationRequest, 404);
+
+        return Inertia::render('reservation/VerifyNotice', [
+            'email' => $reservationRequest->email,
+        ]);
+    }
+
+    public function verify(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $reservationRequest = ReservationRequest::find($request->session()->get('reservation_request_id'));
+
+        abort_unless($reservationRequest, 404);
+
+        if (strtoupper($validated['code']) !== strtoupper($reservationRequest->verification_code)) {
+            return back()->withErrors([
+                'code' => 'Le code n’est pas bon.',
+            ]);
+        }
+
+        $request->session()->forget('reservation_request_id');
+
+        return redirect()->route('reservation.confirmed');
     }
 }

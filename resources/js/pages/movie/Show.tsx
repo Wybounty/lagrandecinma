@@ -38,7 +38,7 @@ export default function Index({ movie }: Props) {
         <>
             <Head title={movie.title} />
 
-            <div className="min-h-screen bg-white">
+            <div className="min-h-screen bg-white text-black">
                 <div className="mx-auto max-w-7xl px-6 py-10">
                     <Link
                         href="/"
@@ -51,7 +51,12 @@ export default function Index({ movie }: Props) {
                         {/* Poster */}
                         <div>
                             <img
-                                src={`/storage/${movie.poster}`}
+                                src={
+                                    movie.poster.startsWith('http') ||
+                                    movie.poster.startsWith('/')
+                                        ? movie.poster
+                                        : `/${movie.poster}`
+                                }
                                 alt={movie.title}
                                 className="w-full rounded-3xl shadow-2xl"
                             />

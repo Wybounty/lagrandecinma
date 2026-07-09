@@ -11,15 +11,20 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 // Movie details page
 Route::get('/movies/{movie:slug}', [MovieController::class, 'show'])->name('movies.show');
 
-Route::get(
-    '/reservation/{cinemaSession}',
-    [ReservationController::class, 'create']
-)->name('reservation.create');
 
-Route::post(
-    '/reservation-requests',
-    [ReservationController::class, 'store']
-)->name('reservation.store');
+// Réservation 
+Route::get('/reservation/session/{cinemaSession}',[ReservationController::class, 'create'])->name('reservation.create');
+
+
+Route::post('/reservation-requests',[ReservationController::class, 'store'])->name('reservation.store');
+
+// Reseration code verification notice page
+Route::get('reservation/verify/', [ReservationController::class, 'verifyNotice'])->name('reservation.verify.notice');
+Route::post('reservation/verify/', [ReservationController::class, 'verify'])->name('reservation.verify');
+Route::inertia('reservation/confirmed', 'reservation/Confirmed')->name('reservation.confirmed');
+
+
+// Admin panel
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');

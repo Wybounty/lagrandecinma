@@ -53,11 +53,18 @@ export default function Home({ movies }: Props) {
                                 className="group"
                             >
                                 <div className="overflow-hidden rounded-2xl shadow-lg transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-2xl">
-                                    <img
-                                        src={`/storage/${movie.poster}`}
-                                        alt={movie.slug}
-                                        className="w-full object-contain transition-transform duration-500 group-hover:scale-105"
-                                    />
+                                    <div className="aspect-[2/3] w-full overflow-hidden">
+                                        <img
+                                            src={
+                                                movie.poster.startsWith('http') ||
+                                                movie.poster.startsWith('/')
+                                                    ? movie.poster
+                                                    : `/${movie.poster}`
+                                            }
+                                            alt={movie.title}
+                                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        />
+                                    </div>
                                 </div>
 
                                 <h2 className="mt-3 text-center text-base font-bold text-neutral-900 md:mt-5 md:text-xl xl:text-2xl">

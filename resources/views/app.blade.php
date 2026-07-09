@@ -23,6 +23,7 @@
         <style>
             html {
                 background-color: oklch(1 0 0);
+                color: black;
             }
 
             html.dark {

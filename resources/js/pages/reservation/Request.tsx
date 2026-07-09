@@ -39,7 +39,7 @@ export default function Create({ movie, session }: Props) {
         <>
             <Head title="Réserver une séance" />
 
-            <div className="min-h-screen bg-neutral-100 py-12">
+            <div className="min-h-screen bg-neutral-100 py-12 text-black">
                 <div className="mx-auto max-w-2xl rounded-3xl bg-white p-10 shadow-xl">
 
                     <h1 className="text-3xl font-bold">
