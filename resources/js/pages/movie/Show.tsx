@@ -106,7 +106,7 @@ export default function Index({ movie }: Props) {
                                                         session.id,
                                                     )
                                                 }
-                                                className={`w-full rounded-xl border p-4 text-left transition ${
+                                                className={`w-full rounded-xl border p-4 text-left transition cursor-pointer ${
                                                     selectedSession ===
                                                     session.id
                                                         ? 'border-red-600 bg-red-50'

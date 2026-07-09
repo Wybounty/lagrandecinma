@@ -6,6 +6,7 @@ use App\Models\CinemaSession;
 use App\Models\ReservationRequest;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class ReservationRequestSeeder extends Seeder
 {
@@ -29,6 +30,7 @@ class ReservationRequestSeeder extends Seeder
         foreach ($sessions as $index => $session) {
             $customer = $customers[$index];
             $requests[] = [
+                'token' => Str::uuid(),
                 'cinema_session_id' => $session->id,
                 'first_name' => $customer['first_name'],
                 'last_name' => $customer['last_name'],

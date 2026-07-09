@@ -1,20 +1,54 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 
 interface Props {
     email?: string;
+    token?: string;
+    expires_at?: string;
 }
 
 export default function VerifyNotice({
     email = 'votre adresse e-mail',
+    token = '',
+    expires_at = '',
+
 }: Props) {
     const { data, setData, post, processing, errors } = useForm({
         code: '',
+        
     });
 
     function submit(e: React.FormEvent) {
         e.preventDefault();
-        post('/reservation/verify');
+        post(`/reservation/verify/${token}`);
     }
+
+
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = new Date().getTime();
+            const expiration = new Date(expires_at).getTime();
+
+            const difference = expiration - now;
+
+            if (difference <= 0) {
+                setTimeLeft('Expiré');
+                clearInterval(interval);
+                return;
+            }
+
+            const minutes = Math.floor(difference / 1000 / 60);
+            const seconds = Math.floor((difference / 1000) % 60);
+
+            setTimeLeft(
+                `${minutes}:${seconds.toString().padStart(2, '0')}`,
+            );
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [expires_at]);
 
     return (
         <>
@@ -53,7 +87,7 @@ export default function VerifyNotice({
                                         Code de validation
                                     </p>
                                     <p className="text-sm text-neutral-500">
-                                        Valide pendant 10 minutes
+                                        Valide pendant 2 minutes
                                     </p>
                                 </div>
 
@@ -80,6 +114,8 @@ export default function VerifyNotice({
                                     </p>
                                 )}
                             </div>
+
+                            <p>{timeLeft}</p>
 
                             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                                 <button

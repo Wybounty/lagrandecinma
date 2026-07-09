@@ -13,6 +13,7 @@ class ReservationRequest extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'token',
         'cinema_session_id',
         'first_name',
         'last_name',
@@ -28,6 +29,7 @@ class ReservationRequest extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'token' => 'string',
         'quantity' => 'integer',
         'expires_at' => 'datetime',
     ];

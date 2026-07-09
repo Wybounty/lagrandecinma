@@ -14,13 +14,11 @@ Route::get('/movies/{movie:slug}', [MovieController::class, 'show'])->name('movi
 
 // Réservation 
 Route::get('/reservation/session/{cinemaSession}',[ReservationController::class, 'create'])->name('reservation.create');
-
-
 Route::post('/reservation-requests',[ReservationController::class, 'store'])->name('reservation.store');
 
 // Reseration code verification notice page
-Route::get('reservation/verify/', [ReservationController::class, 'verifyNotice'])->name('reservation.verify.notice');
-Route::post('reservation/verify/', [ReservationController::class, 'verify'])->name('reservation.verify');
+Route::get('reservation/verify/{token}', [ReservationController::class, 'verifyNotice'])->name('reservation.verify.notice');
+Route::post('reservation/verify/{token}', [ReservationController::class, 'verify'])->name('reservation.verify');
 Route::inertia('reservation/confirmed', 'reservation/Confirmed')->name('reservation.confirmed');
 
 

@@ -5,11 +5,15 @@ namespace App\Http\Controllers;
 use App\Mail\ReservationVerificationCodeMail;
 use App\Models\CinemaSession;
 use App\Models\ReservationRequest;
+use App\Models\Reservation;
+use App\Models\Ticket;
+
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Str;
 
 class ReservationController extends Controller
 {
@@ -39,6 +43,8 @@ class ReservationController extends Controller
             'quantity' => ['required', 'integer', 'min:1', 'max:10'],
         ]);
 
+        //$validated['token'] = Str::uuid();
+
         $reservationRequest = ReservationRequest::create([
             ...$validated,
             'verification_code' => str_pad(
@@ -47,37 +53,45 @@ class ReservationController extends Controller
                 '0',
                 STR_PAD_LEFT
             ),
-            'expires_at' => now()->addMinutes(10),
+            'token' => Str::uuid(),
+            'expires_at' => now()->addMinutes(2),
         ]);
 
         Mail::to($reservationRequest->email)
             ->send(new ReservationVerificationCodeMail($reservationRequest));
 
-        $request->session()->put('reservation_request_id', $reservationRequest->id);
+        //$request->session()->put('reservation_request_id', $reservationRequest->id);
 
-        return redirect()->route('reservation.verify.notice');
-    }
-
-    public function verifyNotice(Request $request): Response
-    {
-        $reservationRequest = ReservationRequest::find(
-            $request->session()->get('reservation_request_id')
-        );
-
-        abort_unless($reservationRequest, 404);
-
-        return Inertia::render('reservation/VerifyNotice', [
-            'email' => $reservationRequest->email,
+        return redirect()->route('reservation.verify.notice', [
+            'token' => $reservationRequest->token,
         ]);
     }
 
-    public function verify(Request $request): RedirectResponse
+    // On veux atterir sur la page de verification
+    public function verifyNotice(Request $request): Response
     {
+        $reservationRequest = ReservationRequest::where('token', $request->token)->firstOrFail();
+
+        abort_unless($reservationRequest, 404);
+
+        $countDown = $reservationRequest->expires_at;
+        $email = $reservationRequest->email;
+
+        return Inertia::render('reservation/VerifyNotice', [
+            'token' => $reservationRequest->token,
+            'expires_at' => $countDown,
+            'email' => $email,
+        ]);
+    }
+
+    public function verify(Request $request, string $token): RedirectResponse
+    {
+
         $validated = $request->validate([
             'code' => ['required', 'string', 'size:6'],
         ]);
 
-        $reservationRequest = ReservationRequest::find($request->session()->get('reservation_request_id'));
+        $reservationRequest = ReservationRequest::where('token',$token)->firstOrFail();
 
         abort_unless($reservationRequest, 404);
 
@@ -87,8 +101,31 @@ class ReservationController extends Controller
             ]);
         }
 
-        $request->session()->forget('reservation_request_id');
+        // Créer une réservation
+
+        $reservation = Reservation::create([
+            'cinema_session_id' => $reservationRequest->cinema_session_id,
+            'first_name' => $reservationRequest->first_name,
+            'last_name' => $reservationRequest->last_name,
+            'email' => $reservationRequest->email,
+            'quantity' => $reservationRequest->quantity,
+            'status' => 'confirmed',
+        ]);
+
+        // Sauvegarder les tickets
+
+        // nb Ticket 
+        for($i = 0; $i != $reservationRequest->quantity; $i++)
+            {
+                Ticket::create([
+                    'reservation_id' => $reservation->id,
+                    'ticket_number' => sprintf('TK-%03d-%02d', $reservation->id, $i + 1),
+                ]);
+            }
+
+        
 
         return redirect()->route('reservation.confirmed');
+
     }
 }

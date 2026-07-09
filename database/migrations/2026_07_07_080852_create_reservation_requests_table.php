@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('reservation_requests', function (Blueprint $table) {
             $table->id();
+            $table->uuid('token')->unique();
             $table->foreignId('cinema_session_id')
                 ->constrained()
                 ->cascadeOnDelete();
