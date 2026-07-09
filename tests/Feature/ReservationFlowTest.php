@@ -42,6 +42,7 @@ test('reservation models are related correctly', function () {
         'email' => 'test@example.com',
         'quantity' => 2,
         'verification_code' => 'ABC123',
+        'token' => 'token-123',
         'expires_at' => Carbon::parse('2026-07-07 12:00:00'),
     ]);
 
