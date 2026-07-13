@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
 
             $table->string('title');
-            $table->text('description');
+            $table->text('description', 500);
             $table->string('slug')->unique();
 
             $table->string('genre');

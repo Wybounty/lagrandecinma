@@ -17,12 +17,13 @@ export default function Confirmed() {
                         </h1>
 
                         <p className="mt-4 text-lg text-neutral-600">
-                            Votre code est correct. La réservation est maintenant confirmée.
+                            Votre code est correct. La réservation est
+                            maintenant confirmée.
                         </p>
 
                         <Link
                             href="/"
-                            className="mt-8 inline-flex rounded-xl bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
+                            className="mt-8 inline-flex rounded-xl bg-red-600 px-8 py-4 font-semibold text-white transition hover:bg-red-700"
                         >
                             Retour à l’accueil
                         </Link>

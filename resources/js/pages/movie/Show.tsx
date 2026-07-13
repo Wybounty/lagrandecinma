@@ -1,5 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
+import { SiteFooter } from '@/components/site-footer';
+import { SiteHeader } from '@/components/site-header';
 import { create as createReservation } from '@/routes/reservation';
 interface Room {
     id: number;
@@ -37,6 +39,7 @@ export default function Index({ movie }: Props) {
     return (
         <>
             <Head title={movie.title} />
+            <SiteHeader cinemaName="La Grande Cinema" />
 
             <div className="min-h-screen bg-white text-black">
                 <div className="mx-auto max-w-7xl px-6 py-10">
@@ -47,9 +50,8 @@ export default function Index({ movie }: Props) {
                         ← Retour aux films
                     </Link>
 
-                    <div className="grid gap-10 lg:grid-cols-2">
-                        {/* Poster */}
-                        <div>
+                    <div className="grid gap-10 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)] lg:items-start">
+                        <div className="mx-auto w-full max-w-sm lg:mx-0">
                             <img
                                 src={
                                     movie.poster.startsWith('http') ||
@@ -58,17 +60,16 @@ export default function Index({ movie }: Props) {
                                         : `/${movie.poster}`
                                 }
                                 alt={movie.title}
-                                className="w-full rounded-3xl shadow-2xl"
+                                className="aspect-[2/3] w-full rounded-3xl object-cover shadow-2xl"
                             />
                         </div>
 
-                        {/* Informations */}
-                        <div className="flex flex-col justify-center">
+                        <div className="flex flex-col">
                             <span className="mb-3 w-fit rounded-full bg-red-600 px-4 py-1 text-sm font-semibold text-white">
                                 {movie.genre}
                             </span>
 
-                            <h1 className="text-5xl font-bold text-neutral-900">
+                            <h1 className="text-4xl font-bold text-neutral-900 sm:text-5xl">
                                 {movie.title}
                             </h1>
 
@@ -89,7 +90,6 @@ export default function Index({ movie }: Props) {
                                 {movie.description}
                             </p>
 
-                            {/* Séances */}
                             <div className="mt-10">
                                 <h2 className="mb-4 text-2xl font-bold text-neutral-900">
                                     Séances disponibles
@@ -106,7 +106,7 @@ export default function Index({ movie }: Props) {
                                                         session.id,
                                                     )
                                                 }
-                                                className={`w-full rounded-xl border p-4 text-left transition cursor-pointer ${
+                                                className={`w-full cursor-pointer rounded-xl border p-4 text-left transition ${
                                                     selectedSession ===
                                                     session.id
                                                         ? 'border-red-600 bg-red-50'
@@ -163,7 +163,6 @@ export default function Index({ movie }: Props) {
                                 </div>
                             </div>
 
-                            {/* Actions */}
                             <div className="mt-10 flex flex-wrap gap-4">
                                 <Link
                                     href={
@@ -195,6 +194,8 @@ export default function Index({ movie }: Props) {
                     </div>
                 </div>
             </div>
+
+            <SiteFooter cinemaName="La Grande Cinema" />
         </>
     );
 }

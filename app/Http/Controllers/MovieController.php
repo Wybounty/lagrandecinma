@@ -12,7 +12,10 @@ class MovieController extends Controller
     {
 
         $movie->load([
-            'cinemaSessions.room',
+            'cinemaSessions' => fn ($query) =>
+                $query->where('starts_at', '>', now())
+                    ->orderBy('starts_at')
+                    ->with('room'),
         ]);
 
         return Inertia::render('movie/Show', [

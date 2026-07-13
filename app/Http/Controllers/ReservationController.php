@@ -8,6 +8,7 @@ use App\Models\CinemaSession;
 use App\Models\Reservation;
 use App\Models\ReservationRequest;
 use App\Models\Ticket;
+use App\Models\Payments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -73,7 +74,11 @@ class ReservationController extends Controller
         ]);
     }
 
-    public function verify(Request $request, string $token): RedirectResponse
+    /**
+     * Vérifie le code de vérification et crée la réservation si le code est correct.
+     */
+
+    public function verify(Request $request, string $token)
     {
         $validated = $request->validate([
             'code' => ['required', 'string', 'size:6'],
@@ -87,34 +92,48 @@ class ReservationController extends Controller
             ]);
         }
 
-        $reservation = Reservation::create([
-            'cinema_session_id' => $reservationRequest->cinema_session_id,
-            'first_name' => $reservationRequest->first_name,
-            'last_name' => $reservationRequest->last_name,
-            'email' => $reservationRequest->email,
-            'quantity' => $reservationRequest->quantity,
-            'status' => 'confirmed',
+        $amount = (int) round($reservationRequest->cinemaSession->price * $reservationRequest->quantity * 100);
+
+        //dd($amount);
+
+
+        $payment = Payments::create([
+            'reservation_request_id' => $reservationRequest->id,
+            'amount' => $amount,
+            'status' => 'pending',
         ]);
 
-        for ($i = 0; $i < $reservationRequest->quantity; $i++) {
-            Ticket::create([
-                'reservation_id' => $reservation->id,
-                'ticket_number' => sprintf('TK-%03d-%02d', $reservation->id, $i + 1),
-            ]);
-        }
+        $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
 
-        $ticketDownloadUrl = URL::temporarySignedRoute(
-            'tickets.show',
-            now()->addDays(7),
-            ['reservation' => $reservation->id],
-        );
+        $checkout = $stripe->checkout->sessions->create([
+            'mode' => 'payment',
 
-        Mail::to($reservationRequest->email)
-            ->send(new ReservationConfirmationMail(
-                $reservation->load('tickets'),
-                $ticketDownloadUrl,
-            ));
+            'success_url' => route('stripe.success') . '?session_id={CHECKOUT_SESSION_ID}',
 
-        return redirect()->route('reservation.confirmed');
+            'cancel_url' => route('stripe.cancel'),
+            
+            'metadata' => [
+                'payment_id' => (string) $payment->id,
+            ],
+
+            'line_items' => [[
+                'price_data' => [
+                    'currency' => 'eur',
+                    'unit_amount' => $amount,
+
+                    'product_data' => [
+                        'name' => $reservationRequest->cinemaSession->movie->title,
+                    ],
+                ],
+
+                'quantity' => 1,
+            ]],
+        ]);
+
+        $payment->update([
+            'stripe_checkout_session_id' => $checkout->id,
+        ]);
+
+        return Inertia::location($checkout->url);
     }
 }

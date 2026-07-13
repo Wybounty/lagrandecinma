@@ -11,18 +11,15 @@ export default function VerifyNotice({
     email = 'votre adresse e-mail',
     token = '',
     expires_at = '',
-
 }: Props) {
     const { data, setData, post, processing, errors } = useForm({
         code: '',
-        
     });
 
     function submit(e: React.FormEvent) {
         e.preventDefault();
         post(`/reservation/verify/${token}`);
     }
-
 
     const [timeLeft, setTimeLeft] = useState('');
 
@@ -36,15 +33,14 @@ export default function VerifyNotice({
             if (difference <= 0) {
                 setTimeLeft('Expiré');
                 clearInterval(interval);
+
                 return;
             }
 
             const minutes = Math.floor(difference / 1000 / 60);
             const seconds = Math.floor((difference / 1000) % 60);
 
-            setTimeLeft(
-                `${minutes}:${seconds.toString().padStart(2, '0')}`,
-            );
+            setTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`);
         }, 1000);
 
         return () => clearInterval(interval);
@@ -61,7 +57,7 @@ export default function VerifyNotice({
                             ✉️
                         </div>
 
-                        <p className="mt-6 text-sm font-semibold uppercase tracking-[0.35em] text-red-600">
+                        <p className="mt-6 text-sm font-semibold tracking-[0.35em] text-red-600 uppercase">
                             Étape 2
                         </p>
 
@@ -74,7 +70,8 @@ export default function VerifyNotice({
                             <span className="font-semibold text-neutral-900">
                                 {email}
                             </span>
-                            . Saisissez-le ci-dessous pour confirmer votre réservation.
+                            . Saisissez-le ci-dessous pour confirmer votre
+                            réservation.
                         </p>
 
                         <form
@@ -101,7 +98,10 @@ export default function VerifyNotice({
                                     type="text"
                                     value={data.code}
                                     onChange={(e) =>
-                                        setData('code', e.target.value.toUpperCase())
+                                        setData(
+                                            'code',
+                                            e.target.value.toUpperCase(),
+                                        )
                                     }
                                     maxLength={6}
                                     placeholder="Entrez votre code"
@@ -121,21 +121,23 @@ export default function VerifyNotice({
                                 <button
                                     type="submit"
                                     disabled={processing}
-                                    className="rounded-2xl bg-red-600 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                                    className="rounded-xl bg-red-600 px-8 py-4 font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
                                 >
-                                    {processing ? 'Vérification...' : 'Valider mon code'}
+                                    {processing
+                                        ? 'Vérification...'
+                                        : 'Valider mon code'}
                                 </button>
                             </div>
                         </form>
 
                         <p className="mt-6 text-sm leading-7 text-neutral-500">
-                            Si vous ne trouvez pas l’e-mail, vérifiez vos spams ou
-                            contactez notre support.
+                            Si vous ne trouvez pas l’e-mail, vérifiez vos spams
+                            ou contactez notre support.
                         </p>
                     </section>
 
                     <aside className="flex-1 rounded-[32px] border border-neutral-900/10 bg-neutral-900 p-8 text-white shadow-[0_20px_80px_-30px_rgba(0,0,0,0.45)] sm:p-10 lg:p-12">
-                        <p className="text-sm font-semibold uppercase tracking-[0.35em] text-neutral-400">
+                        <p className="text-sm font-semibold tracking-[0.35em] text-neutral-400 uppercase">
                             À retenir
                         </p>
 
@@ -146,20 +148,29 @@ export default function VerifyNotice({
                         <ul className="mt-6 space-y-4 text-sm leading-7 text-neutral-300">
                             <li className="flex gap-3">
                                 <span className="mt-1 text-red-400">•</span>
-                                <span>Confirmation envoyée directement à votre adresse mail.</span>
+                                <span>
+                                    Confirmation envoyée directement à votre
+                                    adresse mail.
+                                </span>
                             </li>
                             <li className="flex gap-3">
                                 <span className="mt-1 text-red-400">•</span>
-                                <span>Accès rapide à votre billet et aux détails de la séance.</span>
+                                <span>
+                                    Accès rapide à votre billet et aux détails
+                                    de la séance.
+                                </span>
                             </li>
                             <li className="flex gap-3">
                                 <span className="mt-1 text-red-400">•</span>
-                                <span>Support disponible si vous rencontrez un souci.</span>
+                                <span>
+                                    Support disponible si vous rencontrez un
+                                    souci.
+                                </span>
                             </li>
                         </ul>
 
                         <div className="mt-8 rounded-2xl border border-white/10 bg-white/10 p-5">
-                            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-neutral-400">
+                            <p className="text-sm font-semibold tracking-[0.3em] text-neutral-400 uppercase">
                                 Besoin d’aide ?
                             </p>
                             <p className="mt-2 text-lg font-medium text-white">

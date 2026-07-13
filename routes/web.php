@@ -5,11 +5,13 @@ use App\Http\Controllers\MovieController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\StripeController;
+
+
 
 // Home page
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-// Movie details page
 Route::get('/movies/{movie:slug}', [MovieController::class, 'show'])->name('movies.show');
 
 // Réservation
@@ -28,6 +30,17 @@ Route::get('/tickets/{reservation}', [TicketController::class, 'show'])
 Route::get('/ticket/{ticket:uuid}', [TicketController::class, 'single'])
     ->middleware('signed')
     ->name('tickets.single');
+
+
+// Stripe payment routes
+Route::get('/stripe/success', [StripeController::class, 'success'])
+    ->name('stripe.success');
+
+Route::get('/stripe/cancel', [StripeController::class, 'cancel'])
+    ->name('stripe.cancel');
+
+Route::post('/stripe/webhook', [StripeController::class, 'handle'])
+    ->name('stripe.webhook');
 
 // Admin panel
 
