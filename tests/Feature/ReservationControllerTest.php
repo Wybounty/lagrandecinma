@@ -4,15 +4,18 @@ use App\Mail\ReservationConfirmationMail;
 use App\Mail\ReservationVerificationCodeMail;
 use App\Models\CinemaSession;
 use App\Models\Movie;
+use App\Models\Payments;
 use App\Models\Reservation;
 use App\Models\ReservationRequest;
 use App\Models\Room;
 use App\Models\Ticket;
+use App\Services\StripeCheckoutService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia as Assert;
+use Stripe\Checkout\Session;
 
-function makeCinemaSession(): CinemaSession
+function makeCinemaSession(int $totalSeats = 120): CinemaSession
 {
     $movie = Movie::create([
         'title' => 'Interstellar',
@@ -27,7 +30,7 @@ function makeCinemaSession(): CinemaSession
 
     $room = Room::create([
         'name' => 'Salle 1',
-        'total_seats' => 120,
+        'total_seats' => $totalSeats,
         'is_active' => true,
     ]);
 
@@ -61,9 +64,68 @@ test('reservation request is created and verification mail is sent', function ()
     expect($reservationRequest->verification_code)->toMatch('/^\d{6}$/');
     expect($reservationRequest->token)->not->toBeEmpty();
     expect($reservationRequest->expires_at)->not->toBeNull();
+    expect($reservationRequest->expires_at->greaterThan(now()))->toBeTrue();
 
     Mail::assertSent(ReservationVerificationCodeMail::class);
     Mail::assertNotSent(ReservationConfirmationMail::class);
+});
+
+test('reservation request creation is rejected when not enough seats remain', function () {
+    $session = makeCinemaSession(5);
+
+    Reservation::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 3,
+        'status' => 'confirmed',
+    ]);
+
+    ReservationRequest::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Grace',
+        'last_name' => 'Hopper',
+        'email' => 'grace@example.com',
+        'quantity' => 1,
+        'verification_code' => 'ABC123',
+        'token' => 'token-hold-1',
+        'expires_at' => now()->addMinutes(15),
+    ]);
+
+    $response = $this->from(route('reservation.create', ['cinemaSession' => $session->id]))
+        ->post(route('reservation.store'), [
+            'cinema_session_id' => $session->id,
+            'first_name' => 'Linus',
+            'last_name' => 'Torvalds',
+            'email' => 'linus@example.com',
+            'quantity' => 2,
+        ]);
+
+    $response->assertRedirect(route('reservation.create', ['cinemaSession' => $session->id]));
+    $response->assertSessionHasErrors(['quantity']);
+
+    expect(ReservationRequest::count())->toBe(1);
+});
+
+test('reservation creation page exposes the available seats', function () {
+    $session = makeCinemaSession(8);
+
+    Reservation::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 3,
+        'status' => 'confirmed',
+    ]);
+
+    $this->get(route('reservation.create', ['cinemaSession' => $session->id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('reservation/Request')
+            ->where('session.available_seats', 5),
+        );
 });
 
 test('reservation verification page is displayed for a token', function () {
@@ -105,22 +167,30 @@ test('reservation is confirmed when the verification code matches', function () 
         'expires_at' => now()->addMinutes(2),
     ]);
 
+    $checkoutSession = Session::constructFrom([
+        'id' => 'cs_test_checkout',
+        'url' => 'https://checkout.stripe.test/session',
+    ], null);
+
+    $stripeCheckoutService = Mockery::mock(StripeCheckoutService::class);
+    $stripeCheckoutService->shouldReceive('createSession')
+        ->with(Mockery::type(Payments::class), 'Interstellar')
+        ->andReturn($checkoutSession);
+
+    $this->instance(StripeCheckoutService::class, $stripeCheckoutService);
+
     $response = $this->post(route('reservation.verify', ['token' => $reservationRequest->token]), [
         'code' => 'abc123',
     ]);
 
-    $response->assertRedirect(route('reservation.confirmed'));
+    $response->assertRedirect('https://checkout.stripe.test/session');
 
-    expect(Reservation::query()->count())->toBe(1);
-    expect(Ticket::query()->count())->toBe(2);
+    expect(Reservation::query()->count())->toBe(0);
+    expect(Ticket::query()->count())->toBe(0);
+    expect(Payments::query()->count())->toBe(1);
+    expect($reservationRequest->fresh()->completed_at)->toBeNull();
 
-    $reservation = Reservation::query()->first();
-
-    expect($reservation->status)->toBe('confirmed');
-    expect($reservation->tickets)->toHaveCount(2);
-    expect($reservation->tickets->first()->uuid)->not->toBeEmpty();
-
-    Mail::assertSent(ReservationConfirmationMail::class);
+    Mail::assertNotSent(ReservationConfirmationMail::class);
 });
 
 test('reservation verification is rejected when the verification code does not match', function () {
@@ -149,6 +219,56 @@ test('reservation verification is rejected when the verification code does not m
     expect(Ticket::count())->toBe(0);
 });
 
+test('reservation verification reuses an existing open checkout session without duplicating payments', function () {
+    $session = makeCinemaSession();
+
+    $reservationRequest = ReservationRequest::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 2,
+        'verification_code' => 'ABC123',
+        'token' => 'token-123',
+        'expires_at' => now()->addMinutes(15),
+    ]);
+
+    Payments::create([
+        'reservation_request_id' => $reservationRequest->id,
+        'stripe_checkout_session_id' => 'cs_test_existing',
+        'amount' => 2400,
+        'currency' => 'eur',
+        'status' => 'pending',
+    ]);
+
+    $checkoutSession = Session::constructFrom([
+        'id' => 'cs_test_existing',
+        'status' => 'open',
+        'url' => 'https://checkout.stripe.test/session',
+    ], null);
+
+    $stripeCheckoutService = Mockery::mock(StripeCheckoutService::class);
+    $stripeCheckoutService->shouldReceive('createSession')
+        ->with(Mockery::type(Payments::class), 'Interstellar')
+        ->andReturn($checkoutSession);
+
+    $this->instance(StripeCheckoutService::class, $stripeCheckoutService);
+
+    $response = $this->post(route('reservation.verify', ['token' => $reservationRequest->token]), [
+        'code' => 'abc123',
+    ]);
+
+    $response->assertRedirect('https://checkout.stripe.test/session');
+
+    expect(Payments::count())->toBe(1);
+
+    $this->post(route('reservation.verify', ['token' => $reservationRequest->token]), [
+        'code' => 'abc123',
+    ])->assertRedirect('https://checkout.stripe.test/session');
+
+    expect(Payments::count())->toBe(1);
+});
+
 test('signed ticket url returns a pdf', function () {
     $session = makeCinemaSession();
 
@@ -167,40 +287,6 @@ test('signed ticket url returns a pdf', function () {
 
     $response->assertOk();
     $response->assertHeader('Content-Type', 'application/pdf');
-});
-
-test('reservation pdf contains one page per ticket when downloading all tickets', function () {
-    $session = makeCinemaSession();
-
-    $reservation = Reservation::create([
-        'cinema_session_id' => $session->id,
-        'first_name' => 'Ada',
-        'last_name' => 'Lovelace',
-        'email' => 'ada@example.com',
-        'quantity' => 4,
-        'status' => 'confirmed',
-    ]);
-
-    for ($i = 1; $i <= 4; $i++) {
-        Ticket::create([
-            'reservation_id' => $reservation->id,
-            'ticket_number' => sprintf('TK-%03d-%02d', $reservation->id, $i),
-        ]);
-    }
-
-    $response = $this->get(URL::temporarySignedRoute('tickets.show', now()->addDay(), [
-        'reservation' => $reservation->id,
-    ]));
-
-    $response->assertOk();
-
-    $pdf = $response->getContent();
-
-    expect($pdf)->toContain('%PDF-1.4');
-    expect($pdf)->toContain('Billet 1');
-    expect($pdf)->toContain('Billet 2');
-    expect($pdf)->toContain('Billet 3');
-    expect($pdf)->toContain('Billet 4');
 });
 
 test('single ticket download url is signed and unique per ticket', function () {

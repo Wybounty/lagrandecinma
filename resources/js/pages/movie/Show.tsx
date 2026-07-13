@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { create as createReservation } from '@/routes/reservation';
+
 interface Room {
     id: number;
     name: string;
@@ -14,6 +15,7 @@ interface CinemaSession {
     starts_at: string;
     price: string;
     room: Room;
+    available_seats: number;
 }
 
 interface Movie {
@@ -80,9 +82,9 @@ export default function Index({ movie }: Props) {
 
                                 <div className="rounded-lg bg-neutral-100 px-4 py-2">
                                     📅{' '}
-                                    {new Date(
-                                        movie.release_date,
-                                    ).toLocaleDateString('fr-FR')}
+                                    {new Date(movie.release_date).toLocaleDateString(
+                                        'fr-FR',
+                                    )}
                                 </div>
                             </div>
 
@@ -101,19 +103,24 @@ export default function Index({ movie }: Props) {
                                             <button
                                                 key={session.id}
                                                 type="button"
-                                                onClick={() =>
-                                                    setSelectedSession(
-                                                        session.id,
-                                                    )
+                                                onClick={() => {
+                                                    if (session.available_seats > 0) {
+                                                        setSelectedSession(
+                                                            session.id,
+                                                        );
+                                                    }
+                                                }}
+                                                disabled={
+                                                    session.available_seats <= 0
                                                 }
-                                                className={`w-full cursor-pointer rounded-xl border p-4 text-left transition ${
+                                                className={`w-full cursor-pointer rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
                                                     selectedSession ===
                                                     session.id
                                                         ? 'border-red-600 bg-red-50'
                                                         : 'border-neutral-200 hover:border-red-500'
                                                 }`}
                                             >
-                                                <div className="flex items-center justify-between">
+                                                <div className="flex items-center justify-between gap-4">
                                                     <div>
                                                         <p className="font-semibold capitalize">
                                                             {new Date(
@@ -139,14 +146,27 @@ export default function Index({ movie }: Props) {
                                                                     minute: '2-digit',
                                                                 },
                                                             )}{' '}
-                                                            •{' '}
-                                                            {session.room.name}
+                                                            • {session.room.name}
+                                                        </p>
+
+                                                        <p
+                                                            className={`mt-2 text-sm font-semibold ${
+                                                                session.available_seats <=
+                                                                0
+                                                                    ? 'text-red-600'
+                                                                    : 'text-green-700'
+                                                            }`}
+                                                        >
+                                                            {session.available_seats <=
+                                                            0
+                                                                ? 'Complet'
+                                                                : `${session.available_seats} place${session.available_seats > 1 ? 's' : ''} disponible${session.available_seats > 1 ? 's' : ''}`}
                                                         </p>
                                                     </div>
 
                                                     <div className="text-right">
                                                         <p className="text-lg font-bold">
-                                                            {parseFloat(
+                                                            {Number.parseFloat(
                                                                 session.price,
                                                             ).toFixed(2)}{' '}
                                                             €

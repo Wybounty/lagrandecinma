@@ -13,6 +13,7 @@ interface CinemaSession {
     room: {
         name: string;
     };
+    available_seats: number;
 }
 
 interface Props {
@@ -26,12 +27,12 @@ export default function Create({ movie, session }: Props) {
         first_name: '',
         last_name: '',
         email: '',
-        quantity: 1,
+        quantity: session.available_seats > 0 ? 1 : 0,
     });
 
-    const total = parseFloat(session.price) * data.quantity;
+    const total = Number.parseFloat(session.price) * data.quantity;
 
-    function submit(e: React.FormEvent) {
+    function submit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
 
         post('/reservation-requests');
@@ -72,7 +73,13 @@ export default function Create({ movie, session }: Props) {
                         </p>
 
                         <p className="mt-2 font-semibold">
-                            {parseFloat(session.price).toFixed(2)} € / billet
+                            {Number.parseFloat(session.price).toFixed(2)} € / billet
+                        </p>
+
+                        <p className="mt-2 text-sm font-semibold text-green-700">
+                            {session.available_seats <= 0
+                                ? 'Complet'
+                                : `${session.available_seats} place${session.available_seats > 1 ? 's' : ''} disponible${session.available_seats > 1 ? 's' : ''}`}
                         </p>
                     </div>
 
@@ -82,19 +89,17 @@ export default function Create({ movie, session }: Props) {
                                 Nombre de billets
                             </label>
 
-                            <select
+                            <input
+                                type="number"
                                 value={data.quantity}
                                 onChange={(e) =>
                                     setData('quantity', Number(e.target.value))
                                 }
+                                min={1}
+                                max={session.available_seats}
+                                disabled={session.available_seats <= 0}
                                 className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-                            >
-                                {Array.from({ length: 10 }).map((_, index) => (
-                                    <option key={index} value={index + 1}>
-                                        {index + 1}
-                                    </option>
-                                ))}
-                            </select>
+                            />
 
                             {errors.quantity && (
                                 <p className="mt-2 text-sm text-red-600">
@@ -125,9 +130,7 @@ export default function Create({ movie, session }: Props) {
                         </div>
 
                         <div>
-                            <label className="mb-2 block font-medium">
-                                Nom
-                            </label>
+                            <label className="mb-2 block font-medium">Nom</label>
 
                             <input
                                 type="text"
@@ -178,8 +181,8 @@ export default function Create({ movie, session }: Props) {
 
                         <button
                             type="submit"
-                            disabled={processing}
-                            className="w-full rounded-xl bg-red-600 px-8 py-4 font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                            disabled={processing || session.available_seats <= 0}
+                            className="w-full rounded-xl bg-red-600 px-8 py-4 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {processing
                                 ? 'Envoi...'

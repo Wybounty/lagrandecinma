@@ -22,6 +22,7 @@ class ReservationRequest extends Model
         'quantity',
         'verification_code',
         'expires_at',
+        'completed_at',
     ];
 
     /**
@@ -33,6 +34,7 @@ class ReservationRequest extends Model
         'token' => 'string',
         'quantity' => 'integer',
         'expires_at' => 'datetime',
+        'completed_at' => 'datetime',
     ];
 
     /**
@@ -47,6 +49,6 @@ class ReservationRequest extends Model
 
     public function payment(): HasOne
     {
-        return $this->hasOne(Payment::class);
+        return $this->hasOne(Payments::class);
     }
 }
