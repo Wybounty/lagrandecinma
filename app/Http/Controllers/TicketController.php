@@ -119,12 +119,16 @@ class TicketController extends Controller
     {
         $matrix = Encoder::encode($content, ErrorCorrectionLevel::M())->getMatrix();
         $matrixSize = $matrix->getWidth();
+        if ($matrixSize <= 0) {
+            return '';
+        }
+
         $quietZone = 4;
         $targetSize = 140;
         $moduleSize = max(3, intdiv($targetSize - ($quietZone * 2), $matrixSize));
-        $imageSize = ($matrixSize * $moduleSize) + ($quietZone * 2);
+        $imageSize = max(1, ($matrixSize * $moduleSize) + ($quietZone * 2));
 
-        $image = imagecreatetruecolor($imageSize, $imageSize);
+        $image = imagecreatetruecolor((int) $imageSize, (int) $imageSize);
 
         if ($image === false) {
             return '';
@@ -132,6 +136,12 @@ class TicketController extends Controller
 
         $white = imagecolorallocate($image, 255, 255, 255);
         $black = imagecolorallocate($image, 0, 0, 0);
+
+        if ($white === false || $black === false) {
+            imagedestroy($image);
+
+            return '';
+        }
 
         imagefilledrectangle($image, 0, 0, $imageSize, $imageSize, $white);
 

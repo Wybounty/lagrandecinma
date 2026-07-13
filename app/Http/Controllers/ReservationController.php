@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 
 class ReservationController extends Controller
 {
@@ -111,7 +112,7 @@ class ReservationController extends Controller
         string $token,
         SeatAvailabilityService $seatAvailabilityService,
         StripeCheckoutService $stripeCheckoutService,
-    ) {
+    ): HttpFoundationResponse {
         $validated = $request->validate([
             'code' => ['required', 'string', 'size:6'],
         ]);
@@ -163,6 +164,7 @@ class ReservationController extends Controller
                 ]);
             }
 
+            /** @var Payments|null $payment */
             $payment = $reservationRequest->payment()->lockForUpdate()->first();
 
             if ($payment !== null && $payment->status === 'paid') {

@@ -24,6 +24,9 @@ class Payments extends Model
     /**
      * La demande de réservation associée à ce paiement.
      */
+    /**
+     * @return BelongsTo<ReservationRequest, $this>
+     */
     public function reservationRequest(): BelongsTo
     {
         return $this->belongsTo(ReservationRequest::class);

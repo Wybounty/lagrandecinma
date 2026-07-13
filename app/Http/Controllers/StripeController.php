@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 use Stripe\Webhook;
 
 class StripeController extends Controller
@@ -32,7 +33,7 @@ class StripeController extends Controller
     public function handle(
         Request $request,
         SeatAvailabilityService $seatAvailabilityService,
-    ) {
+    ): HttpFoundationResponse {
         $event = Webhook::constructEvent(
             $request->getContent(),
             $request->header('Stripe-Signature'),
@@ -40,6 +41,7 @@ class StripeController extends Controller
         );
 
         if ($event->type === 'checkout.session.expired') {
+            /** @var object{id: string} $stripeSession */
             $stripeSession = $event->data->object;
 
             DB::transaction(function () use ($stripeSession): void {
@@ -61,6 +63,7 @@ class StripeController extends Controller
         }
 
         if ($event->type === 'checkout.session.completed') {
+            /** @var object{metadata: object{payment_id: string}, payment_intent: string} $stripeSession */
             $stripeSession = $event->data->object;
 
             $reservation = DB::transaction(function () use (

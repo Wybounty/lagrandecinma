@@ -47,6 +47,9 @@ class ReservationRequest extends Model
         return $this->belongsTo(CinemaSession::class);
     }
 
+    /**
+     * @return HasOne<Payments, $this>
+     */
     public function payment(): HasOne
     {
         return $this->hasOne(Payments::class);

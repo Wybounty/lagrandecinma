@@ -30,7 +30,6 @@ class MovieSeeder extends Seeder
                 'title' => 'Inception',
                 'slug' => 'inception',
                 'description' => "Dom Cobb est un voleur expérimenté dans l'art périlleux de l'extraction : sa spécialité consiste à s'approprier les secrets les plus précieux d'un individu, enfouis au plus profond de son subconscient, pendant qu'il rêve et que son esprit est particulièrement vulnérable. Très recherché pour ses talents dans l'univers trouble de l'espionnage industriel, Cobb est aussi devenu un fugitif traqué dans le monde entier. Cependant, une ultime mission pourrait lui permettre de retrouver sa vie d'avant.",                'genre' => 'Science-fiction',
-                'genre' => 'Science-fiction',
                 'duration' => 148,
                 'release_date' => '2010-07-16',
                 'poster' => 'films/inception.jpg',
