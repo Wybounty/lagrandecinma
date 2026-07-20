@@ -33,8 +33,11 @@ yarn-error.log
 
 # AI / Agents
 .agents/
+.claude/
+.pi/
 AGENTS.md
 opencode.json
+CLAUDE.md
 
 # Environment
 .env
