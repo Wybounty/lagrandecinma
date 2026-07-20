@@ -30,11 +30,15 @@ yarn-error.log
 
 # Cursor
 .cursor/
+.claude/
+.codex/
+.pi/
 
 # AI / Agents
 .agents/
 AGENTS.md
 opencode.json
+CLAUDE.md
 
 # Environment
 .env
