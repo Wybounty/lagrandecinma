@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,20 +44,30 @@ type Props = {
 export default function Index({ reservations, filters }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const firstRender = useRef(true);
 
-    function submit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault();
+    useEffect(() => {
+        if (firstRender.current) {
+            firstRender.current = false;
 
-        router.get(
-            '/admin/reservations',
-            { search, status },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
-        );
-    }
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            router.get(
+                '/admin/reservations',
+                { search, status },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    replace: true,
+                    only: ['reservations', 'filters'],
+                },
+            );
+        }, 300);
+
+        return () => window.clearTimeout(timeout);
+    }, [search, status]);
 
     function cancelReservation(reservation: ReservationRow) {
         if (!window.confirm(`Annuler la réservation #${reservation.id} ?`)) {
@@ -89,7 +99,7 @@ export default function Index({ reservations, filters }: Props) {
                     </CardHeader>
 
                     <CardContent>
-                        <form onSubmit={submit} className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+                        <div className="grid gap-3 md:grid-cols-[1fr_220px]">
                             <Input
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
@@ -105,11 +115,7 @@ export default function Index({ reservations, filters }: Props) {
                                 <option value="confirmed">Confirmée</option>
                                 <option value="cancelled">Annulée</option>
                             </select>
-
-                            <Button type="submit" variant="outline">
-                                Filtrer
-                            </Button>
-                        </form>
+                        </div>
                     </CardContent>
                 </Card>
 

@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,20 +34,30 @@ type Props = {
 
 export default function Index({ movies, filters }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const firstRender = useRef(true);
 
-    function submit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault();
+    useEffect(() => {
+        if (firstRender.current) {
+            firstRender.current = false;
 
-        router.get(
-            '/admin/movies',
-            { search },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
-        );
-    }
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            router.get(
+                '/admin/movies',
+                { search },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    replace: true,
+                    only: ['movies', 'filters'],
+                },
+            );
+        }, 300);
+
+        return () => window.clearTimeout(timeout);
+    }, [search]);
 
     function destroy(movie: MovieRow) {
         if (!window.confirm(`Supprimer le film "${movie.title}" ?`)) {
@@ -56,6 +66,18 @@ export default function Index({ movies, filters }: Props) {
 
         router.delete(`/admin/movies/${movie.id}`, {
             preserveScroll: true,
+        });
+    }
+
+    function visitPage(url: string | null) {
+        if (url === null) {
+            return;
+        }
+
+        router.get(url, {}, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: false,
         });
     }
 
@@ -79,18 +101,14 @@ export default function Index({ movies, filters }: Props) {
                     </CardHeader>
 
                     <CardContent>
-                        <form onSubmit={submit} className="flex flex-col gap-3 md:flex-row">
+                        <div className="flex flex-col gap-3 md:flex-row">
                             <Input
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Rechercher un film, un genre ou un slug"
                                 className="md:max-w-md"
                             />
-
-                            <Button type="submit" variant="outline">
-                                Rechercher
-                            </Button>
-                        </form>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -171,18 +189,13 @@ export default function Index({ movies, filters }: Props) {
                     {movies.links.map((link, index) => (
                         <Button
                             key={`${link.label}-${index}`}
-                            asChild={link.url !== null}
+                            type="button"
                             size="sm"
                             variant={link.active ? 'default' : 'outline'}
                             disabled={link.url === null}
+                            onClick={() => visitPage(link.url)}
                         >
-                            {link.url !== null ? (
-                                <Link href={link.url} preserveScroll>
-                                    <span dangerouslySetInnerHTML={{ __html: link.label }} />
-                                </Link>
-                            ) : (
-                                <span dangerouslySetInnerHTML={{ __html: link.label }} />
-                            )}
+                            <span dangerouslySetInnerHTML={{ __html: link.label }} />
                         </Button>
                     ))}
                 </div>

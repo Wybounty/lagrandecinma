@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\CinemaSessionController as AdminCinemaSessionController;
 use App\Http\Controllers\Admin\MovieController as AdminMovieController;
 use App\Http\Controllers\Admin\ReservationController as AdminReservationController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\ReservationController;
@@ -43,7 +44,7 @@ Route::post('/stripe/webhook', [StripeController::class, 'handle'])
     ->name('stripe.webhook');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::prefix('admin')
         ->name('admin.')

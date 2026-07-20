@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReservationRequest;
 use App\Http\Requests\UpdateReservationRequest;
+use App\Mail\ReservationCancellationMail;
 use App\Models\CinemaSession;
 use App\Models\Reservation;
 use App\Models\Ticket;
@@ -12,6 +13,7 @@ use App\Services\SeatAvailabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -187,7 +189,13 @@ class ReservationController extends Controller
     public function destroy(Reservation $reservation): RedirectResponse
     {
         if ($reservation->status !== 'cancelled') {
+            $reservation->loadMissing('cinemaSession.movie', 'cinemaSession.room');
+
             $reservation->update(['status' => 'cancelled']);
+
+            Mail::to($reservation->email)->send(
+                new ReservationCancellationMail($reservation),
+            );
         }
 
         return redirect()

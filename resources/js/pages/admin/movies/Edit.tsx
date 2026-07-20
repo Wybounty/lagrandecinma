@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { posterUrl } from '@/lib/poster';
 
 type MovieForm = {
     id: number;
@@ -11,22 +12,26 @@ type MovieForm = {
     genre: string;
     duration: number;
     release_date: string;
-    poster: string;
+    poster: File | null;
+    current_poster: string;
     trailer_url: string;
     is_active: boolean;
 };
 
 type Props = {
     movie: MovieForm;
+    genres: Array<{ value: string; label: string }>;
 };
 
-export default function Edit({ movie }: Props) {
+export default function Edit({ movie, genres }: Props) {
     const { data, setData, put, processing, errors } = useForm<MovieForm>(movie);
 
     function submit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
-        put(`/admin/movies/${movie.id}`);
+        put(`/admin/movies/${movie.id}`, {
+            forceFormData: true,
+        });
     }
 
     return (
@@ -46,7 +51,17 @@ export default function Edit({ movie }: Props) {
                             </Field>
 
                             <Field label="Genre" error={errors.genre}>
-                                <Input value={data.genre} onChange={(event) => setData('genre', event.target.value)} />
+                                <select
+                                    value={data.genre}
+                                    onChange={(event) => setData('genre', event.target.value)}
+                                    className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                >
+                                    {genres.map((genre) => (
+                                        <option key={genre.value} value={genre.value}>
+                                            {genre.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </Field>
 
                             <Field label="Durée (minutes)" error={errors.duration}>
@@ -67,10 +82,31 @@ export default function Edit({ movie }: Props) {
                             </Field>
 
                             <Field label="Affiche" error={errors.poster}>
-                                <Input
-                                    value={data.poster}
-                                    onChange={(event) => setData('poster', event.target.value)}
-                                />
+                                <div className="space-y-3">
+                                    <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(event) =>
+                                            setData('poster', event.target.files?.[0] ?? null)
+                                        }
+                                    />
+
+                                    <div className="flex flex-wrap items-center gap-4">
+                                        {data.poster ? (
+                                            <img
+                                                src={URL.createObjectURL(data.poster)}
+                                                alt="Nouvelle affiche"
+                                                className="h-40 w-28 rounded-lg object-cover"
+                                            />
+                                        ) : (
+                                            <img
+                                                src={posterUrl(data.current_poster)}
+                                                alt="Affiche actuelle"
+                                                className="h-40 w-28 rounded-lg object-cover"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
                             </Field>
 
                             <Field label="Bande-annonce" error={errors.trailer_url}>

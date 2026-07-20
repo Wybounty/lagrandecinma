@@ -10,15 +10,29 @@ use App\Models\Movie;
 use App\Models\Room;
 use App\Services\SeatAvailabilityService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CinemaSessionController extends Controller
 {
-    public function index(SeatAvailabilityService $seatAvailabilityService): Response
-    {
+    public function index(
+        Request $request,
+        SeatAvailabilityService $seatAvailabilityService,
+    ): Response {
+        $search = trim((string) $request->string('search'));
+
         $sessions = CinemaSession::query()
             ->with(['movie', 'room'])
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($nested) use ($search): void {
+                    $nested->whereHas('movie', function ($movieQuery) use ($search): void {
+                        $movieQuery->where('title', 'like', "%{$search}%");
+                    })->orWhereHas('room', function ($roomQuery) use ($search): void {
+                        $roomQuery->where('name', 'like', "%{$search}%");
+                    })->orWhere('starts_at', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('starts_at')
             ->get()
             ->each(fn (CinemaSession $session) => $session->setAttribute(
@@ -28,6 +42,9 @@ class CinemaSessionController extends Controller
 
         return Inertia::render('admin/sessions/Index', [
             'sessions' => $sessions,
+            'filters' => [
+                'search' => $search,
+            ],
         ]);
     }
 

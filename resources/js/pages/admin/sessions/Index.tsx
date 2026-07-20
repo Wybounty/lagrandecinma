@@ -1,7 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 type SessionRow = {
     id: number;
@@ -19,9 +21,38 @@ type SessionRow = {
 
 type Props = {
     sessions: SessionRow[];
+    filters: {
+        search: string;
+    };
 };
 
-export default function Index({ sessions }: Props) {
+export default function Index({ sessions, filters }: Props) {
+    const [search, setSearch] = useState(filters.search ?? '');
+    const firstRender = useRef(true);
+
+    useEffect(() => {
+        if (firstRender.current) {
+            firstRender.current = false;
+
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            router.get(
+                '/admin/sessions',
+                { search },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    replace: true,
+                    only: ['sessions', 'filters'],
+                },
+            );
+        }, 300);
+
+        return () => window.clearTimeout(timeout);
+    }, [search]);
+
     function destroy(session: SessionRow) {
         if (!window.confirm('Supprimer cette séance ?')) {
             return;
@@ -50,6 +81,15 @@ export default function Index({ sessions }: Props) {
                             <Link href="/admin/sessions/create">Nouvelle séance</Link>
                         </Button>
                     </CardHeader>
+
+                    <CardContent>
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Rechercher par film, salle ou date"
+                            className="md:max-w-md"
+                        />
+                    </CardContent>
                 </Card>
 
                 <Card>

@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\MovieGenre;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMovieRequest;
 use App\Http\Requests\UpdateMovieRequest;
 use App\Models\Movie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,19 +47,26 @@ class MovieController extends Controller
             'movie' => [
                 'title' => '',
                 'description' => '',
-                'genre' => '',
+                'genre' => MovieGenre::Action->value,
                 'duration' => 120,
                 'release_date' => now()->toDateString(),
-                'poster' => '',
+                'poster' => null,
                 'trailer_url' => '',
                 'is_active' => true,
             ],
+            'genres' => MovieGenre::options(),
         ]);
     }
 
     public function store(StoreMovieRequest $request): RedirectResponse
     {
-        $movie = Movie::create($request->validated());
+        $validated = $request->validated();
+        $posterPath = $request->file('poster')?->store('movies', 'public');
+
+        $movie = Movie::create([
+            ...collect($validated)->except('poster')->all(),
+            'poster' => $posterPath,
+        ]);
 
         return redirect()
             ->route('admin.movies.index')
@@ -87,18 +96,32 @@ class MovieController extends Controller
                 'genre' => $movie->genre,
                 'duration' => $movie->duration,
                 'release_date' => $movie->release_date->toDateString(),
-                'poster' => $movie->poster,
+                'poster' => null,
+                'current_poster' => $movie->poster,
                 'trailer_url' => $movie->trailer_url ?? '',
                 'is_active' => $movie->is_active,
             ],
+            'genres' => MovieGenre::options(),
         ]);
     }
 
     public function update(UpdateMovieRequest $request, Movie $movie): RedirectResponse
     {
+        $validated = $request->validated();
+        $posterPath = $movie->poster;
+
+        if ($request->hasFile('poster')) {
+            if ($posterPath !== '' && Storage::disk('public')->exists($posterPath)) {
+                Storage::disk('public')->delete($posterPath);
+            }
+
+            $posterPath = $request->file('poster')?->store('movies', 'public');
+        }
+
         $movie->update([
-            ...$request->validated(),
-            'slug' => Str::slug((string) $request->validated('title')),
+            ...collect($validated)->except('poster')->all(),
+            'slug' => Str::slug((string) $validated['title']),
+            'poster' => $posterPath,
         ]);
 
         return redirect()

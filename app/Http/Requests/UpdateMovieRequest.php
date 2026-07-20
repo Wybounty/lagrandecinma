@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\MovieGenre;
 use App\Models\Movie;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class UpdateMovieRequest extends FormRequest
 {
@@ -43,10 +45,10 @@ class UpdateMovieRequest extends FormRequest
                 'unique:movies,slug'.($movie !== null ? ','.$movie->id : ''),
             ],
             'description' => ['required', 'string'],
-            'genre' => ['required', 'string', 'max:255'],
+            'genre' => ['required', 'string', Rule::in(MovieGenre::values())],
             'duration' => ['required', 'integer', 'min:1', 'max:1000'],
             'release_date' => ['required', 'date'],
-            'poster' => ['required', 'string', 'max:255'],
+            'poster' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'trailer_url' => ['nullable', 'url', 'max:255'],
             'is_active' => ['sometimes', 'boolean'],
         ];

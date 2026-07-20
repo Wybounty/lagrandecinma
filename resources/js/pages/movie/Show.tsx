@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { create as createReservation } from '@/routes/reservation';
+import { posterUrl } from '@/lib/poster';
 
 interface Room {
     id: number;
@@ -55,12 +56,7 @@ export default function Index({ movie }: Props) {
                     <div className="grid gap-10 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)] lg:items-start">
                         <div className="mx-auto w-full max-w-sm lg:mx-0">
                             <img
-                                src={
-                                    movie.poster.startsWith('http') ||
-                                    movie.poster.startsWith('/')
-                                        ? movie.poster
-                                        : `/${movie.poster}`
-                                }
+                                src={posterUrl(movie.poster)}
                                 alt={movie.title}
                                 className="aspect-[2/3] w-full rounded-3xl object-cover shadow-2xl"
                             />

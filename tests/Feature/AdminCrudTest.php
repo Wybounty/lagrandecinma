@@ -1,10 +1,14 @@
 <?php
 
+use App\Mail\ReservationCancellationMail;
 use App\Models\CinemaSession;
 use App\Models\Movie;
 use App\Models\Reservation;
 use App\Models\Room;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function createAdminMovie(): Movie
@@ -50,8 +54,33 @@ it('displays the admin movies index', function () {
     expect(Movie::query()->whereKey($movie->id)->exists())->toBeTrue();
 });
 
+it('filters admin movies by search term', function () {
+    $user = User::factory()->create();
+    createAdminMovie();
+    Movie::create([
+        'title' => 'Avatar',
+        'description' => 'Un autre film.',
+        'genre' => 'Fantasy',
+        'duration' => 160,
+        'release_date' => '2024-01-01',
+        'poster' => 'movies/avatar.jpg',
+        'trailer_url' => 'https://www.youtube.com/watch?v=xyz',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->get('/admin/movies?search=Avat')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/movies/Index')
+            ->has('movies.data', 1)
+            ->where('movies.data.0.title', 'Avatar'),
+        );
+});
+
 it('creates a movie with a generated slug', function () {
     $user = User::factory()->create();
+    Storage::fake('public');
 
     $this->actingAs($user)
         ->post('/admin/movies', [
@@ -60,7 +89,7 @@ it('creates a movie with a generated slug', function () {
             'genre' => 'Science-fiction',
             'duration' => 155,
             'release_date' => '2025-07-12',
-            'poster' => 'movies/dune.jpg',
+            'poster' => UploadedFile::fake()->image('dune.jpg'),
             'trailer_url' => 'https://www.youtube.com/watch?v=abc123',
             'is_active' => true,
         ])
@@ -69,6 +98,7 @@ it('creates a movie with a generated slug', function () {
     $movie = Movie::query()->where('title', 'Dune')->firstOrFail();
 
     expect($movie->slug)->toBe('dune');
+    Storage::disk('public')->assertExists($movie->poster);
 });
 
 it('blocks movie deletion when sessions already exist', function () {
@@ -106,10 +136,44 @@ it('creates a reservation and generates tickets in the admin area', function () 
     expect($reservation->tickets()->count())->toBe(2);
 });
 
+it('filters admin reservations by search term', function () {
+    $user = User::factory()->create();
+    $movie = createAdminMovie();
+    $session = createAdminSession($movie, 30);
+
+    Reservation::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 2,
+        'status' => 'confirmed',
+    ]);
+
+    Reservation::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Grace',
+        'last_name' => 'Hopper',
+        'email' => 'grace@example.com',
+        'quantity' => 1,
+        'status' => 'cancelled',
+    ]);
+
+    $this->actingAs($user)
+        ->get('/admin/reservations?search=Grace')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/reservations/Index')
+            ->has('reservations.data', 1)
+            ->where('reservations.data.0.first_name', 'Grace'),
+        );
+});
+
 it('cancels a reservation instead of deleting it', function () {
     $user = User::factory()->create();
     $movie = createAdminMovie();
     $session = createAdminSession($movie, 30);
+    Mail::fake();
 
     $reservation = Reservation::create([
         'cinema_session_id' => $session->id,
@@ -125,6 +189,7 @@ it('cancels a reservation instead of deleting it', function () {
         ->assertRedirect('/admin/reservations');
 
     expect($reservation->fresh()->status)->toBe('cancelled');
+    Mail::assertSent(ReservationCancellationMail::class);
 });
 
 it('blocks session deletion when a reservation exists', function () {
@@ -147,4 +212,32 @@ it('blocks session deletion when a reservation exists', function () {
         ->assertSessionHas('error');
 
     expect(CinemaSession::query()->whereKey($session->id)->exists())->toBeTrue();
+});
+
+it('filters admin sessions by search term', function () {
+    $user = User::factory()->create();
+    $movieOne = createAdminMovie();
+    $movieTwo = Movie::create([
+        'title' => 'Avatar',
+        'description' => 'Un film.',
+        'genre' => 'Fantastique',
+        'duration' => 160,
+        'release_date' => '2024-01-01',
+        'poster' => 'movies/avatar.jpg',
+        'trailer_url' => 'https://www.youtube.com/watch?v=xyz',
+        'is_active' => true,
+    ]);
+
+    createAdminSession($movieOne);
+    createAdminSession($movieTwo);
+
+    $this->actingAs($user)
+        ->get('/admin/sessions?search=Avatar')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/sessions/Index')
+            ->where('filters.search', 'Avatar')
+            ->has('sessions', 1)
+            ->where('sessions.0.movie.title', 'Avatar'),
+        );
 });

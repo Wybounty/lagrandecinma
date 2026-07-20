@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { posterUrl } from '@/lib/poster';
 
 type SessionRow = {
     id: number;
@@ -76,7 +77,14 @@ export default function Show({ movie }: Props) {
                         </p>
 
                         <div className="grid gap-4 md:grid-cols-2">
-                            <Info label="Affiche" value={movie.poster} />
+                            <div className="rounded-lg border p-4">
+                                <p className="text-xs uppercase tracking-wide text-muted-foreground">Affiche</p>
+                                <img
+                                    src={posterUrl(movie.poster)}
+                                    alt={movie.title}
+                                    className="mt-3 h-56 w-40 rounded-lg object-cover"
+                                />
+                            </div>
                             <Info label="Bande-annonce" value={movie.trailer_url ?? 'Aucune'} />
                         </div>
                     </CardContent>

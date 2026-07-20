@@ -10,22 +10,25 @@ type MovieForm = {
     genre: string;
     duration: number;
     release_date: string;
-    poster: string;
+    poster: File | null;
     trailer_url: string;
     is_active: boolean;
 };
 
 type Props = {
     movie: MovieForm;
+    genres: Array<{ value: string; label: string }>;
 };
 
-export default function Create({ movie }: Props) {
+export default function Create({ movie, genres }: Props) {
     const { data, setData, post, processing, errors } = useForm<MovieForm>(movie);
 
     function submit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
-        post('/admin/movies');
+        post('/admin/movies', {
+            forceFormData: true,
+        });
     }
 
     return (
@@ -45,7 +48,17 @@ export default function Create({ movie }: Props) {
                             </Field>
 
                             <Field label="Genre" error={errors.genre}>
-                                <Input value={data.genre} onChange={(event) => setData('genre', event.target.value)} />
+                                <select
+                                    value={data.genre}
+                                    onChange={(event) => setData('genre', event.target.value)}
+                                    className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                >
+                                    {genres.map((genre) => (
+                                        <option key={genre.value} value={genre.value}>
+                                            {genre.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </Field>
 
                             <Field label="Durée (minutes)" error={errors.duration}>
@@ -66,11 +79,23 @@ export default function Create({ movie }: Props) {
                             </Field>
 
                             <Field label="Affiche" error={errors.poster}>
-                                <Input
-                                    value={data.poster}
-                                    onChange={(event) => setData('poster', event.target.value)}
-                                    placeholder="movies/mon-film.jpg"
-                                />
+                                <div className="space-y-3">
+                                    <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(event) =>
+                                            setData('poster', event.target.files?.[0] ?? null)
+                                        }
+                                    />
+
+                                    {data.poster && (
+                                        <img
+                                            src={URL.createObjectURL(data.poster)}
+                                            alt="Aperçu de l'affiche"
+                                            className="h-40 w-28 rounded-lg object-cover"
+                                        />
+                                    )}
+                                </div>
                             </Field>
 
                             <Field label="Bande-annonce" error={errors.trailer_url}>

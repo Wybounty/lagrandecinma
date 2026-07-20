@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
+import { posterUrl } from '@/lib/poster';
 
 interface Movie {
     id: number;
@@ -73,7 +74,7 @@ export default function Home({ movies }: Props) {
                                     <div className="overflow-hidden rounded-2xl shadow-lg transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-2xl">
                                         <div className="aspect-[2/3] w-full overflow-hidden">
                                             <img
-                                                src={movie.poster}
+                                                src={posterUrl(movie.poster)}
                                                 alt={movie.title}
                                                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                             />
