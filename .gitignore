@@ -33,6 +33,7 @@ yarn-error.log
 
 # AI / Agents
 .agents/
+.codex/
 AGENTS.md
 opencode.json
 
