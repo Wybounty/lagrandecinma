@@ -1,4 +1,5 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePoll } from '@inertiajs/react';
+import { useEffect } from 'react';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 
@@ -29,6 +30,26 @@ export default function Create({ movie, session }: Props) {
         email: '',
         quantity: session.available_seats > 0 ? 1 : 0,
     });
+
+    usePoll(10000, { only: ['session'] }, { keepAlive: true, mode: 'rest' });
+
+    const isSoldOut = session.available_seats <= 0;
+
+    useEffect(() => {
+        if (isSoldOut && data.quantity !== 0) {
+            setData('quantity', 0);
+            return;
+        }
+
+        if (!isSoldOut && data.quantity < 1) {
+            setData('quantity', 1);
+            return;
+        }
+
+        if (!isSoldOut && data.quantity > session.available_seats) {
+            setData('quantity', session.available_seats);
+        }
+    }, [data.quantity, isSoldOut, session.available_seats, setData]);
 
     const total = Number.parseFloat(session.price) * data.quantity;
 
@@ -76,9 +97,13 @@ export default function Create({ movie, session }: Props) {
                             {Number.parseFloat(session.price).toFixed(2)} € / billet
                         </p>
 
-                        <p className="mt-2 text-sm font-semibold text-green-700">
-                            {session.available_seats <= 0
-                                ? 'Complet'
+                        <p
+                            className={`mt-2 text-sm font-semibold ${
+                                isSoldOut ? 'text-red-600' : 'text-green-700'
+                            }`}
+                        >
+                            {isSoldOut
+                                ? 'Cette séance est complète'
                                 : `${session.available_seats} place${session.available_seats > 1 ? 's' : ''} disponible${session.available_seats > 1 ? 's' : ''}`}
                         </p>
                     </div>
@@ -95,9 +120,9 @@ export default function Create({ movie, session }: Props) {
                                 onChange={(e) =>
                                     setData('quantity', Number(e.target.value))
                                 }
-                                min={1}
+                                min={isSoldOut ? 0 : 1}
                                 max={session.available_seats}
-                                disabled={session.available_seats <= 0}
+                                disabled={isSoldOut}
                                 className="w-full rounded-xl border border-neutral-300 px-4 py-3"
                             />
 
@@ -181,12 +206,14 @@ export default function Create({ movie, session }: Props) {
 
                         <button
                             type="submit"
-                            disabled={processing || session.available_seats <= 0}
+                            disabled={processing || isSoldOut}
                             className="w-full rounded-xl bg-red-600 px-8 py-4 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {processing
                                 ? 'Envoi...'
-                                : 'Recevoir mon code de validation'}
+                                : isSoldOut
+                                    ? 'Séance indisponible'
+                                    : 'Recevoir mon code de validation'}
                         </button>
                     </form>
                 </div>

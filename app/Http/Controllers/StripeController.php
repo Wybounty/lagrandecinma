@@ -3,25 +3,67 @@
 namespace App\Http\Controllers;
 
 use App\Mail\ReservationConfirmationMail;
-use App\Models\CinemaSession;
 use App\Models\Payments;
 use App\Models\Reservation;
-use App\Models\ReservationRequest;
-use App\Models\Ticket;
 use App\Services\SeatAvailabilityService;
+use App\Services\StripeCheckoutFinalizer;
+use App\Services\StripeCheckoutService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 use Stripe\Webhook;
+use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 
 class StripeController extends Controller
 {
-    public function success(Request $request): Response
-    {
+    public function success(
+        Request $request,
+        StripeCheckoutService $stripeCheckoutService,
+        SeatAvailabilityService $seatAvailabilityService,
+        StripeCheckoutFinalizer $finalizer,
+    ): Response {
+        $sessionId = trim((string) $request->string('session_id'));
+
+        if ($sessionId !== '') {
+            $stripeSession = $stripeCheckoutService->retrieveSession($sessionId);
+            $stripeCheckoutSessionId = (string) data_get($stripeSession, 'id', '');
+            $stripePaymentIntentId = (string) data_get($stripeSession, 'payment_intent', '');
+            $paymentId = (string) data_get($stripeSession, 'metadata.payment_id', '');
+
+            if (
+                $stripeCheckoutSessionId === ''
+                || $stripePaymentIntentId === ''
+                || $paymentId === ''
+            ) {
+                return Inertia::render('reservation/Confirmed');
+            }
+
+            $reservation = $finalizer->finalizeCompletedSession(
+                $stripeCheckoutSessionId,
+                $stripePaymentIntentId,
+                $paymentId,
+                $seatAvailabilityService,
+            );
+
+            if ($reservation instanceof Reservation) {
+                $ticketDownloadUrl = URL::temporarySignedRoute(
+                    'tickets.show',
+                    now()->addDays(7),
+                    ['reservation' => $reservation->id],
+                );
+
+                Mail::to($reservation->email)->send(
+                    new ReservationConfirmationMail(
+                        $reservation->load('cinemaSession.movie', 'cinemaSession.room', 'tickets'),
+                        $ticketDownloadUrl,
+                    ),
+                );
+            }
+        }
+
         return Inertia::render('reservation/Confirmed');
     }
 
@@ -33,6 +75,7 @@ class StripeController extends Controller
     public function handle(
         Request $request,
         SeatAvailabilityService $seatAvailabilityService,
+        StripeCheckoutFinalizer $finalizer,
     ): HttpFoundationResponse {
         $event = Webhook::constructEvent(
             $request->getContent(),
@@ -65,94 +108,24 @@ class StripeController extends Controller
         if ($event->type === 'checkout.session.completed') {
             /** @var object{metadata: object{payment_id: string}, payment_intent: string} $stripeSession */
             $stripeSession = $event->data->object;
+            $stripeCheckoutSessionId = (string) data_get($stripeSession, 'id', '');
+            $stripePaymentIntentId = (string) data_get($stripeSession, 'payment_intent', '');
+            $paymentId = (string) data_get($stripeSession, 'metadata.payment_id', '');
 
-            $reservation = DB::transaction(function () use (
-                $stripeSession,
-                $seatAvailabilityService,
+            if (
+                $stripeCheckoutSessionId === ''
+                || $stripePaymentIntentId === ''
+                || $paymentId === ''
             ) {
-                $payment = Payments::query()
-                    ->whereKey($stripeSession->metadata->payment_id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+                return response()->json(['received' => true]);
+            }
 
-                if ($payment->status === 'paid') {
-                    return null;
-                }
-
-                $reservationRequest = ReservationRequest::query()
-                    ->whereKey($payment->reservation_request_id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                if ($reservationRequest->completed_at !== null) {
-                    $payment->update([
-                        'status' => 'paid',
-                        'stripe_payment_intent_id' => $stripeSession->payment_intent,
-                        'paid_at' => now(),
-                    ]);
-
-                    return null;
-                }
-
-                if ($reservationRequest->expires_at->isPast()) {
-                    $payment->update([
-                        'status' => 'expired',
-                    ]);
-
-                    return null;
-                }
-
-                $cinemaSession = CinemaSession::query()
-                    ->whereKey($reservationRequest->cinema_session_id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-                $cinemaSession->loadMissing('movie', 'room');
-
-                $availableSeats = $seatAvailabilityService->availableSeats(
-                    $cinemaSession,
-                    $reservationRequest,
-                );
-
-                if ($reservationRequest->quantity > $availableSeats) {
-                    $payment->update([
-                        'status' => 'expired',
-                    ]);
-
-                    return null;
-                }
-
-                $reservation = Reservation::create([
-                    'cinema_session_id' => $cinemaSession->id,
-                    'first_name' => $reservationRequest->first_name,
-                    'last_name' => $reservationRequest->last_name,
-                    'email' => $reservationRequest->email,
-                    'quantity' => $reservationRequest->quantity,
-                    'status' => 'confirmed',
-                ]);
-
-                for ($i = 0; $i < $reservationRequest->quantity; $i++) {
-                    Ticket::create([
-                        'reservation_id' => $reservation->id,
-                        'ticket_number' => sprintf(
-                            'TK-%03d-%02d',
-                            $reservation->id,
-                            $i + 1,
-                        ),
-                    ]);
-                }
-
-                $reservationRequest->update([
-                    'completed_at' => now(),
-                ]);
-
-                $payment->update([
-                    'status' => 'paid',
-                    'stripe_payment_intent_id' => $stripeSession->payment_intent,
-                    'paid_at' => now(),
-                ]);
-
-                return $reservation;
-            });
+            $reservation = $finalizer->finalizeCompletedSession(
+                $stripeCheckoutSessionId,
+                $stripePaymentIntentId,
+                $paymentId,
+                $seatAvailabilityService,
+            );
 
             if ($reservation === null) {
                 return response()->json(['received' => true]);
@@ -166,7 +139,7 @@ class StripeController extends Controller
 
             Mail::to($reservation->email)
                 ->send(new ReservationConfirmationMail(
-                    $reservation->load('tickets'),
+                    $reservation->load('cinemaSession.movie', 'cinemaSession.room', 'tickets'),
                     $ticketDownloadUrl,
                 ));
         }

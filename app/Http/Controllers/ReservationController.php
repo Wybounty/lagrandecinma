@@ -21,13 +21,18 @@ use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 class ReservationController extends Controller
 {
     /**
-     * Affiche le formulaire de réservation.
+     * Affiche le formulaire de rÃ©servation.
      */
     public function create(
         CinemaSession $cinemaSession,
         SeatAvailabilityService $seatAvailabilityService,
-    ): Response {
-        $cinemaSession->load('movie', 'room');
+    ): Response|RedirectResponse {
+        $cinemaSession->loadMissing('movie', 'room');
+
+        if (! $this->isReservable($cinemaSession, $seatAvailabilityService)) {
+            return $this->redirectToMovie($cinemaSession);
+        }
+
         $cinemaSession->setAttribute(
             'available_seats',
             $seatAvailabilityService->availableSeats($cinemaSession),
@@ -40,7 +45,7 @@ class ReservationController extends Controller
     }
 
     /**
-     * Crée une demande de réservation.
+     * CrÃ©e une demande de rÃ©servation.
      */
     public function store(
         Request $request,
@@ -54,21 +59,26 @@ class ReservationController extends Controller
             'quantity' => ['required', 'integer', 'min:1', 'max:255'],
         ]);
 
-        $reservationRequest = DB::transaction(function () use (
+        $result = DB::transaction(function () use (
             $validated,
             $seatAvailabilityService,
-        ): ReservationRequest {
+        ): ReservationRequest|RedirectResponse {
             $cinemaSession = CinemaSession::query()
+                ->with('movie', 'room')
                 ->whereKey($validated['cinema_session_id'])
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if (! $this->isReservable($cinemaSession, $seatAvailabilityService)) {
+                return $this->redirectToMovie($cinemaSession);
+            }
 
             $availableSeats = $seatAvailabilityService->availableSeats($cinemaSession);
 
             if ($validated['quantity'] > $availableSeats) {
                 throw ValidationException::withMessages([
                     'quantity' => sprintf(
-                        'Il ne reste que %d place(s) disponible(s) pour cette séance.',
+                        'Il ne reste que %d place(s) disponible(s) pour cette sÃ©ance.',
                         $availableSeats,
                     ),
                 ]);
@@ -82,11 +92,15 @@ class ReservationController extends Controller
             ]);
         });
 
-        Mail::to($reservationRequest->email)
-            ->send(new ReservationVerificationCodeMail($reservationRequest));
+        if ($result instanceof RedirectResponse) {
+            return $result;
+        }
+
+        Mail::to($result->email)
+            ->send(new ReservationVerificationCodeMail($result));
 
         return redirect()->route('reservation.verify.notice', [
-            'token' => $reservationRequest->token,
+            'token' => $result->token,
         ]);
     }
 
@@ -105,7 +119,7 @@ class ReservationController extends Controller
     }
 
     /**
-     * Vérifie le code de vérification et crée la réservation si le code est correct.
+     * VÃ©rifie le code de vÃ©rification et crÃ©e la rÃ©servation si le code est correct.
      */
     public function verify(
         Request $request,
@@ -130,7 +144,7 @@ class ReservationController extends Controller
 
             if (strtoupper($validated['code']) !== strtoupper($reservationRequest->verification_code)) {
                 return back()->withErrors([
-                    'code' => 'Le code n’est pas bon.',
+                    'code' => 'Le code nâ€™est pas bon.',
                 ]);
             }
 
@@ -140,15 +154,19 @@ class ReservationController extends Controller
 
             if ($reservationRequest->expires_at->isPast()) {
                 throw ValidationException::withMessages([
-                    'code' => 'Votre demande de réservation a expiré. Veuillez recommencer.',
+                    'code' => 'Votre demande de rÃ©servation a expirÃ©. Veuillez recommencer.',
                 ]);
             }
 
             $cinemaSession = CinemaSession::query()
+                ->with('movie', 'room')
                 ->whereKey($reservationRequest->cinema_session_id)
                 ->lockForUpdate()
                 ->firstOrFail();
-            $cinemaSession->loadMissing('movie', 'room');
+
+            if (! $this->isReservable($cinemaSession, $seatAvailabilityService)) {
+                return Inertia::location(route('movies.show', $cinemaSession->movie));
+            }
 
             $availableSeats = $seatAvailabilityService->availableSeats(
                 $cinemaSession,
@@ -158,7 +176,7 @@ class ReservationController extends Controller
             if ($reservationRequest->quantity > $availableSeats) {
                 throw ValidationException::withMessages([
                     'code' => sprintf(
-                        'Il ne reste que %d place(s) disponible(s) pour cette séance.',
+                        'Il ne reste que %d place(s) disponible(s) pour cette sÃ©ance.',
                         $availableSeats,
                     ),
                 ]);
@@ -196,5 +214,29 @@ class ReservationController extends Controller
 
             return Inertia::location($checkout->url);
         });
+    }
+
+    private function isReservable(
+        CinemaSession $cinemaSession,
+        SeatAvailabilityService $seatAvailabilityService,
+    ): bool {
+        $cinemaSession->loadMissing('movie', 'room');
+
+        if (! $cinemaSession->is_active) {
+            return false;
+        }
+
+        if (! $cinemaSession->starts_at->isFuture()) {
+            return false;
+        }
+
+        return $seatAvailabilityService->availableSeats($cinemaSession) > 0;
+    }
+
+    private function redirectToMovie(CinemaSession $cinemaSession): RedirectResponse
+    {
+        $cinemaSession->loadMissing('movie');
+
+        return redirect()->route('movies.show', $cinemaSession->movie);
     }
 }

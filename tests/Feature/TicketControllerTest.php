@@ -30,7 +30,7 @@ function makeTicketCinemaSession(): CinemaSession
     return CinemaSession::create([
         'movie_id' => $movie->id,
         'room_id' => $room->id,
-        'starts_at' => '2026-07-07 18:30:00',
+        'starts_at' => now()->addDays(7)->setTime(18, 30)->format('Y-m-d H:i:s'),
         'price' => 12.00,
         'is_active' => true,
     ]);

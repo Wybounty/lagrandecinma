@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia as Assert;
 use Stripe\Checkout\Session;
 
-function makeCinemaSession(int $totalSeats = 120): CinemaSession
+function makeCinemaSession(int $totalSeats = 120, ?string $startsAt = null): CinemaSession
 {
     $movie = Movie::create([
         'title' => 'Interstellar',
@@ -37,7 +37,7 @@ function makeCinemaSession(int $totalSeats = 120): CinemaSession
     return CinemaSession::create([
         'movie_id' => $movie->id,
         'room_id' => $room->id,
-        'starts_at' => '2026-07-07 18:30:00',
+        'starts_at' => $startsAt ?? now()->addDays(7)->setTime(18, 30)->format('Y-m-d H:i:s'),
         'price' => 12.00,
         'is_active' => true,
     ]);
@@ -126,6 +126,49 @@ test('reservation creation page exposes the available seats', function () {
             ->component('reservation/Request')
             ->where('session.available_seats', 5),
         );
+});
+
+test('reservation creation page redirects to the movie when the session is sold out', function () {
+    $session = makeCinemaSession(2);
+    $session->load('movie');
+
+    Reservation::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 2,
+        'status' => 'confirmed',
+    ]);
+
+    $this->get(route('reservation.create', ['cinemaSession' => $session->id]))
+        ->assertRedirect(route('movies.show', ['movie' => $session->movie->slug]));
+});
+
+test('reservation creation page redirects to the movie when the session is in the past', function () {
+    $session = makeCinemaSession(8, now()->subDay()->setTime(18, 30)->format('Y-m-d H:i:s'));
+    $session->load('movie');
+
+    $this->get(route('reservation.create', ['cinemaSession' => $session->id]))
+        ->assertRedirect(route('movies.show', ['movie' => $session->movie->slug]));
+});
+
+test('reservation request creation is redirected to the movie when the session is in the past', function () {
+    Mail::fake();
+
+    $session = makeCinemaSession(8, now()->subDay()->setTime(18, 30)->format('Y-m-d H:i:s'));
+    $session->load('movie');
+
+    $this->post(route('reservation.store'), [
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 1,
+    ])->assertRedirect(route('movies.show', ['movie' => $session->movie->slug]));
+
+    expect(ReservationRequest::count())->toBe(0);
+    Mail::assertNotSent(ReservationVerificationCodeMail::class);
 });
 
 test('reservation verification page is displayed for a token', function () {

@@ -8,7 +8,10 @@ use App\Models\Reservation;
 use App\Models\ReservationRequest;
 use App\Models\Room;
 use App\Models\Ticket;
+use App\Services\StripeCheckoutService;
 use Illuminate\Support\Facades\Mail;
+use Mockery\MockInterface;
+use Stripe\Checkout\Session;
 
 function makeStripeSession(): CinemaSession
 {
@@ -97,6 +100,57 @@ test('stripe webhook creates a reservation only once for a completed checkout se
 
     expect(Reservation::count())->toBe(1);
     expect(Ticket::count())->toBe(2);
+
+    Mail::assertSent(ReservationConfirmationMail::class);
+});
+
+test('stripe success page finalizes a completed checkout session and sends the confirmation mail', function () {
+    Mail::fake();
+
+    $session = makeStripeSession();
+
+    $reservationRequest = ReservationRequest::create([
+        'cinema_session_id' => $session->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'quantity' => 2,
+        'verification_code' => 'ABC123',
+        'token' => 'token-123',
+        'expires_at' => now()->addMinutes(15),
+    ]);
+
+    $payment = Payments::create([
+        'reservation_request_id' => $reservationRequest->id,
+        'stripe_checkout_session_id' => 'cs_test_123',
+        'amount' => 2400,
+        'currency' => 'eur',
+        'status' => 'pending',
+    ]);
+
+    $stripeSession = Session::constructFrom([
+        'id' => 'cs_test_123',
+        'payment_intent' => 'pi_test_123',
+        'metadata' => [
+            'payment_id' => (string) $payment->id,
+        ],
+    ], null);
+
+    $this->mock(StripeCheckoutService::class, function (MockInterface $mock) use ($stripeSession): void {
+        $mock->shouldReceive('retrieveSession')
+            ->with('cs_test_123')
+            ->andReturn($stripeSession);
+    });
+
+    $response = $this->get(route('stripe.success', [
+        'session_id' => 'cs_test_123',
+    ]));
+
+    $response->assertOk();
+    expect(Reservation::count())->toBe(1);
+    expect(Ticket::count())->toBe(2);
+    expect(Payments::query()->first()->status)->toBe('paid');
+    expect(ReservationRequest::query()->first()->completed_at)->not->toBeNull();
 
     Mail::assertSent(ReservationConfirmationMail::class);
 });

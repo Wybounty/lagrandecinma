@@ -30,7 +30,7 @@ test('reservation models are related correctly', function () {
     $session = CinemaSession::create([
         'movie_id' => $movie->id,
         'room_id' => $room->id,
-        'starts_at' => '2026-07-07 18:30:00',
+        'starts_at' => now()->addDays(7)->setTime(18, 30)->format('Y-m-d H:i:s'),
         'price' => 12.00,
         'is_active' => true,
     ]);
@@ -43,7 +43,7 @@ test('reservation models are related correctly', function () {
         'quantity' => 2,
         'verification_code' => 'ABC123',
         'token' => 'token-123',
-        'expires_at' => Carbon::parse('2026-07-07 12:00:00'),
+        'expires_at' => Carbon::now()->addMinutes(15),
     ]);
 
     $reservation = Reservation::create([

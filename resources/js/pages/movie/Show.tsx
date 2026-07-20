@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, usePoll } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { create as createReservation } from '@/routes/reservation';
@@ -39,6 +39,25 @@ interface Props {
 export default function Index({ movie }: Props) {
     const [selectedSession, setSelectedSession] = useState<number | null>(null);
 
+    usePoll(10000, { only: ['movie'] }, { keepAlive: true, mode: 'rest' });
+
+    const selectedSessionData = useMemo(
+        () =>
+            movie.cinema_sessions.find(
+                (session) => session.id === selectedSession,
+            ) ?? null,
+        [movie.cinema_sessions, selectedSession],
+    );
+
+    useEffect(() => {
+        if (
+            selectedSessionData !== null &&
+            selectedSessionData.available_seats <= 0
+        ) {
+            setSelectedSession(null);
+        }
+    }, [selectedSessionData]);
+
     return (
         <>
             <Head title={movie.title} />
@@ -50,7 +69,7 @@ export default function Index({ movie }: Props) {
                         href="/"
                         className="mb-8 inline-flex items-center text-sm font-medium text-neutral-600 transition hover:text-black"
                     >
-                        ← Retour aux films
+                        â† Retour aux films
                     </Link>
 
                     <div className="grid gap-10 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)] lg:items-start">
@@ -95,82 +114,84 @@ export default function Index({ movie }: Props) {
 
                                 <div className="space-y-3">
                                     {movie.cinema_sessions.length > 0 ? (
-                                        movie.cinema_sessions.map((session) => (
-                                            <button
-                                                key={session.id}
-                                                type="button"
-                                                onClick={() => {
-                                                    if (session.available_seats > 0) {
-                                                        setSelectedSession(
-                                                            session.id,
-                                                        );
-                                                    }
-                                                }}
-                                                disabled={
-                                                    session.available_seats <= 0
-                                                }
-                                                className={`w-full cursor-pointer rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                                                    selectedSession ===
-                                                    session.id
-                                                        ? 'border-red-600 bg-red-50'
-                                                        : 'border-neutral-200 hover:border-red-500'
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between gap-4">
-                                                    <div>
-                                                        <p className="font-semibold capitalize">
-                                                            {new Date(
-                                                                session.starts_at,
-                                                            ).toLocaleDateString(
-                                                                'fr-FR',
-                                                                {
-                                                                    weekday:
-                                                                        'long',
-                                                                    day: 'numeric',
-                                                                    month: 'long',
-                                                                },
-                                                            )}
-                                                        </p>
+                                        movie.cinema_sessions.map((session) => {
+                                            const isFull =
+                                                session.available_seats <= 0;
+                                            const isSelected =
+                                                selectedSession === session.id;
 
-                                                        <p className="text-neutral-600">
-                                                            {new Date(
-                                                                session.starts_at,
-                                                            ).toLocaleTimeString(
-                                                                'fr-FR',
-                                                                {
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit',
-                                                                },
-                                                            )}{' '}
-                                                            • {session.room.name}
-                                                        </p>
+                                            return (
+                                                <button
+                                                    key={session.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!isFull) {
+                                                            setSelectedSession(
+                                                                session.id,
+                                                            );
+                                                        }
+                                                    }}
+                                                    disabled={isFull}
+                                                    className={`w-full cursor-pointer rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                                                        isSelected
+                                                            ? 'border-red-600 bg-red-50'
+                                                            : 'border-neutral-200 hover:border-red-500'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div>
+                                                            <p className="font-semibold capitalize">
+                                                                {new Date(
+                                                                    session.starts_at,
+                                                                ).toLocaleDateString(
+                                                                    'fr-FR',
+                                                                    {
+                                                                        weekday:
+                                                                            'long',
+                                                                        day: 'numeric',
+                                                                        month: 'long',
+                                                                    },
+                                                                )}
+                                                            </p>
 
-                                                        <p
-                                                            className={`mt-2 text-sm font-semibold ${
-                                                                session.available_seats <=
-                                                                0
-                                                                    ? 'text-red-600'
-                                                                    : 'text-green-700'
-                                                            }`}
-                                                        >
-                                                            {session.available_seats <=
-                                                            0
-                                                                ? 'Complet'
-                                                                : `${session.available_seats} place${session.available_seats > 1 ? 's' : ''} disponible${session.available_seats > 1 ? 's' : ''}`}
-                                                        </p>
+                                                            <p className="text-neutral-600">
+                                                                {new Date(
+                                                                    session.starts_at,
+                                                                ).toLocaleTimeString(
+                                                                    'fr-FR',
+                                                                    {
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                    },
+                                                                )}{' '}
+                                                                • {session.room.name}
+                                                            </p>
+
+                                                            <p
+                                                                className={`mt-2 text-sm font-semibold ${
+                                                                    isFull
+                                                                        ? 'text-red-600'
+                                                                        : 'text-green-700'
+                                                                }`}
+                                                            >
+                                                                {isFull
+                                                                    ? 'Complet'
+                                                                    : `${session.available_seats} place${session.available_seats > 1 ? 's' : ''} disponible${session.available_seats > 1 ? 's' : ''}`}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="text-right">
+                                                            <p className="text-lg font-bold">
+                                                                {Number.parseFloat(
+                                                                    session.price,
+                                                                ).toFixed(2)}{' '}
+                                                                €
+                                                            </p>
+                                                        </div>
                                                     </div>
-
-                                                    <div className="text-right">
-                                                        <p className="text-lg font-bold">
-                                                            {Number.parseFloat(
-                                                                session.price,
-                                                            ).toFixed(2)}{' '}
-                                                            €
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        ))
+                                                </button>
+                                            );
+                                        })
                                     ) : (
                                         <p className="text-neutral-500">
                                             Aucune séance disponible.
@@ -182,14 +203,15 @@ export default function Index({ movie }: Props) {
                             <div className="mt-10 flex flex-wrap gap-4">
                                 <Link
                                     href={
-                                        selectedSession
-                                            ? createReservation(selectedSession)
+                                        selectedSessionData
+                                            ? createReservation(selectedSessionData.id)
                                             : '#'
                                     }
+                                    aria-disabled={!selectedSessionData}
                                     className={`rounded-xl px-8 py-4 font-semibold text-white transition ${
-                                        selectedSession
+                                        selectedSessionData
                                             ? 'bg-red-600 hover:bg-red-700'
-                                            : 'cursor-not-allowed bg-neutral-400'
+                                            : 'pointer-events-none cursor-not-allowed bg-neutral-400'
                                     }`}
                                 >
                                     Réserver cette séance
